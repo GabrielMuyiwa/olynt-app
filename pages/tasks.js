@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
 import { ethers } from "ethers";
-import stakingAbi from "../../Context/StakingDapp.json";
+import stakingAbi from "../../context/StakingDapp.json";
 
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_STAKING_DAPP;
 

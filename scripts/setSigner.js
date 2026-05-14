@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 dotenv.config({ path: ".env.local" }); // ✅ Your .env.local loader
 
 import { ethers } from "ethers";
-import stakingAbi from "../context/StakingDapp.json" assert { type: "json" };
+import stakingAbi from "../../Context/StakingDapp.json" assert { type: "json" };
 
 const RPC_URL = process.env.RPC_URL;
 const PRIVATE_KEY = process.env.PRIVATE_KEY;

@@ -109,7 +109,17 @@ export default function TasksPage() {
     });
 
     if (task.type === "Watch") {
-      setTimeout(() => verifyTask(task), task.duration * 1000);
+
+      // OPEN MONETAG AD
+      window.open(
+        "https://omg10.com/4/11023405",
+        "_blank"
+      );
+
+      // WAIT BEFORE VERIFY
+      setTimeout(() => {
+        verifyTask(task);
+      }, task.duration * 1000);
     }
 
     if (task.type === "Click") {

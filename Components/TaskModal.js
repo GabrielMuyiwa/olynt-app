@@ -8,6 +8,7 @@ export default function TaskModal({
   onClose,
   onClaim,
   onOpenUrl,
+  claiming,
 }) {
   if (!isOpen || !task) return null;
 
@@ -43,7 +44,9 @@ export default function TaskModal({
             {!canClaim ? (
               <button disabled style={styles.claimBtnDisabled}>Wait...</button>
             ) : (
-              <button onClick={onClaim} style={styles.claimBtn}>Claim Reward</button>
+              <button onClick={onClaim} disabled={claiming} style={styles.claimBtn}>
+                {claiming ? "Claiming..." : "Claim Reward"}
+              </button>
             )}
           </div>
         </div>

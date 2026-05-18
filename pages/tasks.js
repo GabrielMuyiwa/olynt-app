@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAccount } from "wagmi";
 import { ethers } from "ethers";
 import stakingAbi from "../Context/StakingDapp.json";
@@ -20,10 +20,12 @@ export default function TasksPage() {
   const [isTaskOpen, setIsTaskOpen] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
   const [canClaim, setCanClaim] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+  const timerRef = useRef(null);
 
   const loadTasks = async () => {
     try {
-      const res = await fetch("/api/tasks?type=all");
+      const res = await fetch(`/api/tasks?type=all&wallet=${address}`);
       const data = await res.json();
       setTasks(data.tasks || []);
     } catch (err) {
@@ -32,8 +34,10 @@ export default function TasksPage() {
   };
 
   useEffect(() => {
-    loadTasks();
-  }, []);
+    if (address) {
+      loadTasks();
+    }
+  }, [address]);
 
   const getBalance = async () => {
     if (!address) return;
@@ -50,11 +54,9 @@ export default function TasksPage() {
 
   useEffect(() => {
     const savedTask = localStorage.getItem("returnTask");
-
     if (savedTask) {
       const task = JSON.parse(savedTask);
       localStorage.removeItem("returnTask");
-
       setActiveTask(task);
       setIsTaskOpen(true);
       setTimeLeft(task.duration || 0);
@@ -63,23 +65,37 @@ export default function TasksPage() {
   }, []);
 
   useEffect(() => {
-    let timer;
+    if (!isTaskOpen) return;
 
-    if (isTaskOpen && timeLeft > 0) {
-      timer = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            setCanClaim(true);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+    if (timerRef.current) clearInterval(timerRef.current);
+
+    if (timeLeft <= 0) {
+      setCanClaim(true);
+      return;
     }
 
-    return () => clearInterval(timer);
-  }, [isTaskOpen, timeLeft]);
+    timerRef.current = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          setCanClaim(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [isTaskOpen]);
+
+  useEffect(() => {
+    if (timeLeft === 0 && isTaskOpen) {
+      setCanClaim(true);
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+  }, [timeLeft, isTaskOpen]);
 
   const getLeaderboard = async () => {
     try {
@@ -103,7 +119,6 @@ export default function TasksPage() {
 
     const urlParams = new URLSearchParams(window.location.search);
     const ref = urlParams.get("ref");
-
     if (!ref) return;
 
     fetch("/api/referral", {
@@ -123,6 +138,7 @@ export default function TasksPage() {
 
     if (activeTask.type === "Watch") {
       window.open("https://omg10.com/4/11023405", "_blank");
+      return;
     }
 
     if (activeTask.type === "Click" && activeTask.url) {
@@ -135,12 +151,8 @@ export default function TasksPage() {
     setActiveTask(null);
     setTimeLeft(0);
     setCanClaim(false);
-  };
-
-  const claimCurrentTask = async () => {
-    if (!activeTask) return;
-    await verifyTask(activeTask);
-    closeTaskModal();
+    setClaiming(false);
+    if (timerRef.current) clearInterval(timerRef.current);
   };
 
   const startTask = async (task) => {
@@ -161,6 +173,7 @@ export default function TasksPage() {
     setIsTaskOpen(true);
     setTimeLeft(task.duration || 0);
     setCanClaim(false);
+    setClaiming(false);
   };
 
   const verifyTask = async (task) => {
@@ -180,8 +193,25 @@ export default function TasksPage() {
       alert(`You earned $${data.reward}`);
       setCompleted((prev) => ({ ...prev, [task.id]: true }));
       getBalance();
-    } else {
-      alert(data.error);
+      return true;
+    }
+
+    alert(data.error || "Task could not be verified");
+    return false;
+  };
+
+  const claimCurrentTask = async () => {
+    if (!activeTask) return;
+    if (!canClaim || claiming) return;
+
+    try {
+      setClaiming(true);
+      const ok = await verifyTask(activeTask);
+      if (ok) {
+        closeTaskModal();
+      }
+    } finally {
+      setClaiming(false);
     }
   };
 
@@ -213,16 +243,9 @@ export default function TasksPage() {
         signer
       );
 
-      const amountWei = ethers.utils.parseUnits(
-        data.amount.toString(),
-        18
-      );
+      const amountWei = ethers.utils.parseUnits(data.amount.toString(), 18);
 
-      const tx = await contract.claimTaskReward(
-        amountWei,
-        data.signature
-      );
-
+      const tx = await contract.claimTaskReward(amountWei, data.signature);
       await tx.wait();
 
       alert("✅ Claimed on blockchain!");
@@ -289,11 +312,7 @@ export default function TasksPage() {
 
       const amountWei = ethers.utils.parseUnits(amount.toString(), 18);
 
-      const tx = await contract.claimTaskReward(
-        amountWei,
-        signature
-      );
-
+      const tx = await contract.claimTaskReward(amountWei, signature);
       await tx.wait();
 
       alert("✅ Referral reward claimed!");
@@ -397,7 +416,6 @@ export default function TasksPage() {
               <span>
                 #{index + 1} — {user.wallet.slice(0, 6)}...
               </span>
-
               <span>{user.referralCount} referrals</span>
             </div>
           ))}
@@ -438,6 +456,7 @@ export default function TasksPage() {
         onClose={closeTaskModal}
         onClaim={claimCurrentTask}
         onOpenUrl={openTaskUrl}
+        claiming={claiming}
       />
     </div>
   );

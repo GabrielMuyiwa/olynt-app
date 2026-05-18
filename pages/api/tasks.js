@@ -1,225 +1,208 @@
-import db from "./firebaseAdmin";   // Admin SDK Firestore
+import db from "./firebaseAdmin";
 
-// 🔐 SECURITY SETTINGS
-const DAILY_LIMIT = 0.1;          // max $ per day
-const COOLDOWN = 20;              // seconds between tasks
+const DAILY_LIMIT = 0.1;
+const COOLDOWN = 20;
 const MAX_TASKS_PER_DAY = 10;
 
 export default async function handler(req, res) {
   const { method } = req;
 
-  if (method === "GET") {
-    const { wallet, type } = req.query;
+  try {
+    if (method === "GET") {
+      const { wallet, type } = req.query;
 
-    // 🔥 NEW: GET ALL TASKS
-    if (type === "all") {
-      const tasksSnap = await db.collection("tasks").get();
-      const tasks = [];
+      if (type === "all") {
+        const tasksSnap = await db.collection("tasks").get();
 
-      tasksSnap.forEach((doc) => {
-        const data = doc.data();
-        if (data.active) {
-          tasks.push({
-            id: doc.id,
-            ...data,
-          });
+        let completedTasks = {};
+        if (wallet) {
+          const userRef = db.collection("users").doc(wallet);
+          const userSnap = await userRef.get();
+          if (userSnap.exists) {
+            completedTasks = userSnap.data().tasks || {};
+          }
         }
-      });
 
-      return res.json({ tasks });
-    }
-
-    if (!wallet) {
-      return res.status(400).json({ error: "Missing wallet" });
-    }
-
-    const userRef = db.collection("users").doc(wallet);
-    const snap = await userRef.get();
-
-    if (!snap.exists) {
-      return res.json({ taskBalance: 0 });
-    }
-
-    return res.json({
-      taskBalance: snap.data().taskBalance || 0,
-    });
-  }
-
-  if (method === "POST") {
-    const { action, wallet, taskId } = req.body;
-
-    if (!wallet || !taskId) {
-      return res.status(400).json({ error: "Missing params" });
-    }
-
-    const taskRef = db.collection("tasks").doc(taskId);
-    const taskSnap = await taskRef.get();
-    if (!taskSnap.exists) {
-      return res.status(400).json({
-        error: "Task not found",
-      });
-    }
-
-    const task = taskSnap.data();
-
-    if (!task.active) {
-      return res.status(400).json({
-        error: "Task disabled",
-      });
-    }
-
-    const userRef = db.collection("users").doc(wallet);
-    const snap = await userRef.get();
-
-    let userData = snap.exists
-      ? snap.data()
-      : {
-          taskBalance: 0,
-          tasks: {},
-          lastAction: 0,
-          dailyEarning: 0,
-          dailyCount: 0,
-          lastReset: Date.now(),
-        };
-
-    const now = Date.now();
-
-    // 🔁 RESET DAILY LIMIT
-    if (now - userData.lastReset > 86400000) {
-      userData.dailyEarning = 0;
-      userData.dailyCount = 0;
-      userData.lastReset = now;
-    }
-
-    // =========================
-    // START TASK
-    // =========================
-    if (action === "start") {
-      if (userData.tasks?.[taskId]?.completed) {
-        return res.status(400).json({ error: "Already completed" });
-      }
-
-      // 🧠 SAVE REFERRER (FIRST TIME ONLY)
-      if (!userData.referrer && req.body.referrer) {
-        userData.referrer = req.body.referrer;
-      }
-
-      // ⛔ COOLDOWN CHECK
-      if ((now - userData.lastAction) / 1000 < COOLDOWN) {
-        return res.status(400).json({
-          error: "Slow down — cooldown active",
+        const tasks = [];
+        tasksSnap.forEach((doc) => {
+          const data = doc.data();
+          const isCompleted = completedTasks[doc.id]?.completed;
+          if (data.active && !isCompleted) {
+            tasks.push({
+              id: doc.id,
+              ...data,
+            });
+          }
         });
+
+        return res.json({ tasks });
       }
 
-      userData.lastAction = now;
-
-      userData.tasks = {
-        ...userData.tasks,
-        [taskId]: {
-          startedAt: now,
-          completed: false,
-        },
-      };
-
-      await userRef.set(userData, { merge: true });
-
-      return res.json({ success: true });
-    }
-
-    // =========================
-    // VERIFY TASK
-    // =========================
-    if (action === "verify") {
-      const taskData = userData.tasks?.[taskId];
-
-      if (!taskData || !taskData.startedAt) {
-        return res.status(400).json({ error: "Task not started" });
+      if (!wallet) {
+        return res.status(400).json({ error: "Missing wallet" });
       }
 
-      if (taskData.completed) {
-        return res.status(400).json({ error: "Already claimed" });
+      const userRef = db.collection("users").doc(wallet);
+      const snap = await userRef.get();
+
+      if (!snap.exists) {
+        return res.json({ taskBalance: 0, referralBalance: 0 });
       }
 
-      // 🎁 REFERRAL BONUS (10%)
-      if (userData.referrer) {
-        const refRef = db.collection("users").doc(userData.referrer);
-        const refSnap = await refRef.get();
-
-        let refData = refSnap.exists
-          ? refSnap.data()
-          : { referralEarnings: 0 };
-
-        const bonus = task.reward * 0.1;
-        await refRef.set(
-          {
-            referralEarnings: (refData.referralEarnings || 0) + bonus,
-          },
-          { merge: true }
-        );
-      }
-
-      const timeSpent = (now - taskData.startedAt) / 1000;
-
-      // ⛔ BOT CHECK
-      if (timeSpent < task.duration) {
-        return res.status(400).json({
-          error: "Too fast — bot suspected",
-        });
-      }
-
-      // ⛔ DAILY LIMIT
-      if (userData.dailyEarning + task.reward > DAILY_LIMIT) {
-        return res.status(400).json({
-          error: "Daily earning limit reached",
-        });
-      }
-
-      // ⛔ TASK COUNT LIMIT
-      if (userData.dailyCount >= MAX_TASKS_PER_DAY) {
-        return res.status(400).json({
-          error: "Daily task limit reached",
-        });
-      }
-
-      // ✅ MARK COMPLETE
-      userData.tasks[taskId].completed = true;
-      userData.taskBalance += task.reward;
-      userData.dailyEarning += task.reward;
-      userData.dailyCount += 1;
-
-      // =========================
-      // 🔥 REFERRAL REWARD
-      // =========================
-      if (userData.referrer) {
-        const refRef = db.collection("users").doc(userData.referrer);
-        const refSnap = await refRef.get();
-
-        if (refSnap.exists) {
-          const refData = refSnap.data();
-          const referralReward = task.reward * 0.1; // 10%
-
-          await refRef.update({
-            referralBalance: (refData.referralBalance || 0) + referralReward,
-            totalReferralEarned: (refData.totalReferralEarned || 0) + referralReward,
-          });
-        }
-      }
-
-      await userRef.update({
-        tasks: userData.tasks,
-        taskBalance: userData.taskBalance,
-        dailyEarning: userData.dailyEarning,
-        dailyCount: userData.dailyCount,
-      });
+      const data = snap.data();
 
       return res.json({
-        success: true,
-        reward: task.reward,
+        taskBalance: data.taskBalance || 0,
+        referralBalance: data.referralBalance || 0,
       });
     }
 
-    return res.status(400).json({ error: "Invalid action" });
-  }
+    if (method === "POST") {
+      const { action, wallet, taskId, referrer } = req.body;
 
-  return res.status(405).json({ error: "Method not allowed" });
+      if (!wallet || !taskId) {
+        return res.status(400).json({ error: "Missing params" });
+      }
+
+      const taskRef = db.collection("tasks").doc(taskId);
+      const userRef = db.collection("users").doc(wallet);
+
+      const taskSnap = await taskRef.get();
+      if (!taskSnap.exists) {
+        return res.status(400).json({ error: "Task not found" });
+      }
+
+      const task = taskSnap.data();
+
+      if (!task.active) {
+        return res.status(400).json({ error: "Task disabled" });
+      }
+
+      const now = Date.now();
+
+      if (action === "start") {
+        await db.runTransaction(async (tx) => {
+          const userSnap = await tx.get(userRef);
+
+          let userData = userSnap.exists
+            ? userSnap.data()
+            : {
+                taskBalance: 0,
+                tasks: {},
+                lastAction: 0,
+                dailyEarning: 0,
+                dailyCount: 0,
+                lastReset: now,
+              };
+
+          if (now - (userData.lastReset || now) > 86400000) {
+            userData.dailyEarning = 0;
+            userData.dailyCount = 0;
+            userData.lastReset = now;
+          }
+
+          if (userData.tasks?.[taskId]?.completed) {
+            throw new Error("Already completed");
+          }
+
+          if ((now - (userData.lastAction || 0)) / 1000 < COOLDOWN) {
+            throw new Error("Slow down — cooldown active");
+          }
+
+          if (!userData.referrer && referrer) {
+            userData.referrer = referrer;
+          }
+
+          userData.lastAction = now;
+          userData.tasks = {
+            ...(userData.tasks || {}),
+            [taskId]: {
+              startedAt: now,
+              completed: false,
+            },
+          };
+
+          tx.set(userRef, userData, { merge: true });
+        });
+
+        return res.json({ success: true });
+      }
+
+      if (action === "verify") {
+        const result = await db.runTransaction(async (tx) => {
+          const userSnap = await tx.get(userRef);
+
+          if (!userSnap.exists) {
+            throw new Error("Task not started");
+          }
+
+          const userData = userSnap.data();
+          const taskData = userData.tasks?.[taskId];
+
+          if (!taskData || !taskData.startedAt) {
+            throw new Error("Task not started");
+          }
+
+          if (taskData.completed) {
+            throw new Error("Already claimed");
+          }
+
+          const timeSpent = (now - taskData.startedAt) / 1000;
+
+          if (timeSpent < task.duration) {
+            throw new Error("Too fast — bot suspected");
+          }
+
+          if ((userData.dailyEarning || 0) + task.reward > DAILY_LIMIT) {
+            throw new Error("Daily earning limit reached");
+          }
+
+          if ((userData.dailyCount || 0) >= MAX_TASKS_PER_DAY) {
+            throw new Error("Daily task limit reached");
+          }
+
+          userData.tasks[taskId].completed = true;
+          userData.taskBalance = (userData.taskBalance || 0) + task.reward;
+          userData.dailyEarning = (userData.dailyEarning || 0) + task.reward;
+          userData.dailyCount = (userData.dailyCount || 0) + 1;
+
+          tx.set(userRef, userData, { merge: true });
+
+          if (userData.referrer) {
+            const refRef = db.collection("users").doc(userData.referrer);
+            const refSnap = await tx.get(refRef);
+
+            const refData = refSnap.exists ? refSnap.data() : {};
+
+            const referralReward = task.reward * 0.1;
+
+            tx.set(
+              refRef,
+              {
+                referralEarnings: (refData.referralEarnings || 0) + referralReward,
+                referralBalance: (refData.referralBalance || 0) + referralReward,
+                totalReferralEarned: (refData.totalReferralEarned || 0) + referralReward,
+              },
+              { merge: true }
+            );
+          }
+
+          return {
+            success: true,
+            reward: task.reward,
+          };
+        });
+
+        return res.json(result);
+      }
+
+      return res.status(400).json({ error: "Invalid action" });
+    }
+
+    return res.status(405).json({ error: "Method not allowed" });
+  } catch (error) {
+    return res.status(400).json({
+      error: error.message || "Something went wrong",
+    });
+  }
 }

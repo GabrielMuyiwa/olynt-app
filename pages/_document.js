@@ -5,9 +5,11 @@ export default function Document() {
     <Html>
       <Head>
 
-        {/* MONETAG VERIFICATION CODE */}
-
-        <meta name="monetag" content="b78d775e910c928e5216baa1b10d6235"></meta>
+        {/* MONETAG VERIFICATION */}
+        <meta
+          name="monetag"
+          content="b78d775e910c928e5216baa1b10d6235"
+        />
 
       </Head>
 

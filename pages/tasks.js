@@ -326,7 +326,14 @@ export default function TasksPage() {
   const visibleTasks = filteredTasks.filter((t) => t.active);
 
   return (
-    <div style={{ padding: "20px", color: "#fff" }}>
+    <div 
+      style={{ 
+        minHeight: "100vh",
+        padding: "20px", 
+        color: "#fff", 
+        backgroundColor: "#17142a", // or your main app bg color
+      }}
+    >
       <h1>Task Center</h1>
 
       <p>Total Earned: ${earnings.toFixed(2)}</p>

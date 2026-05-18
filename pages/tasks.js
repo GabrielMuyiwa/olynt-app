@@ -3,9 +3,9 @@ import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
 import { ethers } from "ethers";
 import stakingAbi from "../Context/StakingDapp.json";
+import TaskModal from "../components/TaskModal";
 
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_STAKING_DAPP;
-
 const tabs = ["Watch", "Click", "Offers", "Surveys"];
 
 export default function TasksPage() {
@@ -16,15 +16,15 @@ export default function TasksPage() {
   const [completed, setCompleted] = useState({});
   const [earnings, setEarnings] = useState(0);
   const [leaderboard, setLeaderboard] = useState([]);
+  const [activeTask, setActiveTask] = useState(null);
+  const [isTaskOpen, setIsTaskOpen] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [canClaim, setCanClaim] = useState(false);
 
-  // =========================
-  // LOAD TASKS
-  // =========================
   const loadTasks = async () => {
     try {
       const res = await fetch("/api/tasks?type=all");
       const data = await res.json();
-
       setTasks(data.tasks || []);
     } catch (err) {
       console.error(err);
@@ -35,9 +35,6 @@ export default function TasksPage() {
     loadTasks();
   }, []);
 
-  // =========================
-  // GET BALANCE
-  // =========================
   const getBalance = async () => {
     if (!address) return;
 
@@ -50,6 +47,39 @@ export default function TasksPage() {
   useEffect(() => {
     if (address) getBalance();
   }, [address]);
+
+  useEffect(() => {
+    const savedTask = localStorage.getItem("returnTask");
+
+    if (savedTask) {
+      const task = JSON.parse(savedTask);
+      localStorage.removeItem("returnTask");
+
+      setActiveTask(task);
+      setIsTaskOpen(true);
+      setTimeLeft(task.duration || 0);
+      setCanClaim(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let timer;
+
+    if (isTaskOpen && timeLeft > 0) {
+      timer = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            setCanClaim(true);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    return () => clearInterval(timer);
+  }, [isTaskOpen, timeLeft]);
 
   const getLeaderboard = async () => {
     try {
@@ -68,16 +98,13 @@ export default function TasksPage() {
     getLeaderboard();
   }, []);
 
-  // =========================
-  // REFERRAL TRACKING (🔥 ADDED)
-  // =========================
   useEffect(() => {
     if (!address) return;
 
     const urlParams = new URLSearchParams(window.location.search);
     const ref = urlParams.get("ref");
 
-    if (!ref) return; // prevent empty calls
+    if (!ref) return;
 
     fetch("/api/referral", {
       method: "POST",
@@ -91,16 +118,38 @@ export default function TasksPage() {
     });
   }, [address]);
 
-  // =========================
-  // START TASK
-  // =========================
+  const openTaskUrl = () => {
+    if (!activeTask) return;
+
+    if (activeTask.type === "Watch") {
+      window.open("https://omg10.com/4/11023405", "_blank");
+    }
+
+    if (activeTask.type === "Click" && activeTask.url) {
+      window.open(activeTask.url, "_blank");
+    }
+  };
+
+  const closeTaskModal = () => {
+    setIsTaskOpen(false);
+    setActiveTask(null);
+    setTimeLeft(0);
+    setCanClaim(false);
+  };
+
+  const claimCurrentTask = async () => {
+    if (!activeTask) return;
+    await verifyTask(activeTask);
+    closeTaskModal();
+  };
+
   const startTask = async (task) => {
     if (!address) return alert("Connect wallet");
     if (completed[task.id]) return;
 
     await fetch("/api/tasks", {
       method: "POST",
-      headers: {"Content-Type": "application/json"},
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         action: "start",
         wallet: address,
@@ -108,33 +157,16 @@ export default function TasksPage() {
       }),
     });
 
-    if (task.type === "Watch") {
-
-      // OPEN MONETAG AD
-      window.open(
-        "https://omg10.com/4/11023405",
-        "_blank"
-      );
-
-      // WAIT BEFORE VERIFY
-      setTimeout(() => {
-        verifyTask(task);
-      }, task.duration * 1000);
-    }
-
-    if (task.type === "Click") {
-      window.open(task.url, "_blank");
-      setTimeout(() => verifyTask(task), 10000);
-    }
+    setActiveTask(task);
+    setIsTaskOpen(true);
+    setTimeLeft(task.duration || 0);
+    setCanClaim(false);
   };
 
-  // =========================
-  // VERIFY TASK
-  // =========================
   const verifyTask = async (task) => {
     const res = await fetch("/api/tasks", {
       method: "POST",
-      headers: {"Content-Type": "application/json"},
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         action: "verify",
         wallet: address,
@@ -146,16 +178,13 @@ export default function TasksPage() {
 
     if (data.reward) {
       alert(`You earned $${data.reward}`);
-      setCompleted(prev => ({ ...prev, [task.id]: true }));
+      setCompleted((prev) => ({ ...prev, [task.id]: true }));
       getBalance();
     } else {
       alert(data.error);
     }
   };
 
-  // =========================
-  // CLAIM TO BLOCKCHAIN
-  // =========================
   const claimRewards = async () => {
     if (!address) return alert("Connect wallet");
     if (earnings <= 0) return alert("No rewards");
@@ -163,7 +192,7 @@ export default function TasksPage() {
     try {
       const res = await fetch("/api/rewards", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userAddress: address,
           amount: earnings,
@@ -198,7 +227,6 @@ export default function TasksPage() {
 
       alert("✅ Claimed on blockchain!");
       setEarnings(0);
-
     } catch (err) {
       console.error(err);
       alert("❌ Claim failed");
@@ -223,7 +251,6 @@ export default function TasksPage() {
       await tx.wait();
 
       alert("✅ Withdraw successful!");
-
     } catch (err) {
       console.error(err);
       alert("❌ Withdraw failed");
@@ -234,7 +261,6 @@ export default function TasksPage() {
     if (!address) return alert("Connect wallet");
 
     try {
-      // 1️⃣ GET SIGNATURE FROM BACKEND
       const res = await fetch("/api/referral-withdraw", {
         method: "POST",
         headers: {
@@ -251,41 +277,34 @@ export default function TasksPage() {
 
       const { signature, amount } = data;
 
-      // 2️⃣ CONNECT WALLET
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       await provider.send("eth_requestAccounts", []);
-
       const signer = provider.getSigner();
 
-    const contract = new ethers.Contract(
-      CONTRACT_ADDRESS,
-      stakingAbi.abi,
-      signer
-    );
+      const contract = new ethers.Contract(
+        CONTRACT_ADDRESS,
+        stakingAbi.abi,
+        signer
+      );
 
-    const amountWei = ethers.utils.parseUnits(amount.toString(), 18);
+      const amountWei = ethers.utils.parseUnits(amount.toString(), 18);
 
-    // 3️⃣ CLAIM INTO CONTRACT
-    const tx = await contract.claimTaskReward(
-      amountWei,
-      signature
-    );
+      const tx = await contract.claimTaskReward(
+        amountWei,
+        signature
+      );
 
-    await tx.wait();
+      await tx.wait();
 
-    alert("✅ Referral reward claimed!");
+      alert("✅ Referral reward claimed!");
+    } catch (err) {
+      console.error(err);
+      alert("❌ Withdraw failed");
+    }
+  };
 
-  } catch (err) {
-    console.error(err);
-    alert("❌ Withdraw failed");
-  }
-};
-
-  const filteredTasks = tasks.filter(
-    (t) => t.type === activeTab
-  );
-
-  const visibleTasks = filteredTasks.filter(t => t.active);
+  const filteredTasks = tasks.filter((t) => t.type === activeTab);
+  const visibleTasks = filteredTasks.filter((t) => t.active);
 
   return (
     <div style={{ padding: "20px", color: "#fff" }}>
@@ -293,9 +312,8 @@ export default function TasksPage() {
 
       <p>Total Earned: ${earnings.toFixed(2)}</p>
 
-      {/* TABS */}
       <div style={{ display: "flex", gap: "10px", marginBottom: 20 }}>
-        {tabs.map(tab => (
+        {tabs.map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -312,8 +330,7 @@ export default function TasksPage() {
         ))}
       </div>
 
-      {/* TASK LIST */}
-      {visibleTasks.map(task => (
+      {visibleTasks.map((task) => (
         <div
           key={task.id}
           style={{
@@ -342,7 +359,6 @@ export default function TasksPage() {
         </div>
       ))}
 
-      {/* CLAIM */}
       <div style={{ marginTop: 30 }}>
         <button
           onClick={claimRewards}
@@ -382,12 +398,10 @@ export default function TasksPage() {
                 #{index + 1} — {user.wallet.slice(0, 6)}...
               </span>
 
-              <span>
-                {user.referralCount} referrals
-              </span>
+              <span>{user.referralCount} referrals</span>
             </div>
           ))}
-        </div>       
+        </div>
 
         <button
           onClick={withdrawRewards}
@@ -401,8 +415,8 @@ export default function TasksPage() {
         >
           Withdraw Rewards
         </button>
-        
-        <button 
+
+        <button
           onClick={withdrawReferral}
           style={{
             padding: "12px",
@@ -415,6 +429,16 @@ export default function TasksPage() {
           Withdraw Referral Rewards
         </button>
       </div>
+
+      <TaskModal
+        isOpen={isTaskOpen}
+        task={activeTask}
+        timeLeft={timeLeft}
+        canClaim={canClaim}
+        onClose={closeTaskModal}
+        onClaim={claimCurrentTask}
+        onOpenUrl={openTaskUrl}
+      />
     </div>
   );
 }

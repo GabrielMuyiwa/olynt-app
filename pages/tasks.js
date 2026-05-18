@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAccount } from "wagmi";
 import { ethers } from "ethers";
 import stakingAbi from "../Context/StakingDapp.json";
-import TaskModal from "../components/TaskModal";
+import TaskModal from "../Components/TaskModal";
 
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_STAKING_DAPP;
 const tabs = ["Watch", "Click", "Offers", "Surveys"];

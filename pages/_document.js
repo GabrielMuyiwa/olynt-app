@@ -11,6 +11,14 @@ export default function Document() {
           content="b78d775e910c928e5216baa1b10d6235"
         />
 
+        {/* MONETAG MULTITAG */}
+        <script
+          src="https://quge5.com/88/tag.min.js"
+          data-zone="240546"
+          async
+          data-cfasync="false"
+        ></script>
+
       </Head>
 
       <body>

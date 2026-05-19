@@ -12,20 +12,32 @@ export default function TaskModal({
 }) {
   if (!isOpen || !task) return null;
 
+  const isClickTask = task.type === "Click";
+
   return (
     <div style={styles.overlay}>
       <div style={styles.modal}>
         <div style={styles.header}>
           <h2 style={{ margin: 0 }}>{task.title || "Task"}</h2>
-          <button onClick={onClose} style={styles.closeBtn}>X</button>
+          <button onClick={onClose} style={styles.closeBtn}>
+            X
+          </button>
         </div>
 
         <div style={styles.body}>
-          <p><strong>Type:</strong> {task.type}</p>
-          <p><strong>Duration:</strong> {task.duration} seconds</p>
+          <p>
+            <strong>Type:</strong> {task.type}
+          </p>
+          <p>
+            <strong>Duration:</strong> {task.duration} seconds
+          </p>
 
-          {task.url && (
+          {isClickTask && (
             <div style={{ marginBottom: "15px" }}>
+              <p style={{ marginBottom: 8 }}>
+                Click the button below to open the task link and keep it open
+                while the timer runs.
+              </p>
               <button onClick={onOpenUrl} style={styles.openBtn}>
                 Open Task Link
               </button>
@@ -33,18 +45,27 @@ export default function TaskModal({
           )}
 
           {!canClaim ? (
-            <p><strong>Time left:</strong> {timeLeft}s</p>
+            <div style={styles.timerBox}>
+              <span style={styles.timerLabel}>Time left:</span>
+              <span style={styles.timerValue}>{timeLeft}s</span>
+            </div>
           ) : (
             <p style={{ color: "green" }}>
-              <strong>Task complete. You can claim now.</strong>
+              <strong>Time complete. You can claim now.</strong>
             </p>
           )}
 
           <div style={styles.actions}>
             {!canClaim ? (
-              <button disabled style={styles.claimBtnDisabled}>Wait...</button>
+              <button style={styles.claimBtnDisabled} disabled>
+                Wait for timer...
+              </button>
             ) : (
-              <button onClick={onClaim} disabled={claiming} style={styles.claimBtn}>
+              <button
+                onClick={onClaim}
+                disabled={claiming}
+                style={styles.claimBtn}
+              >
                 {claiming ? "Claiming..." : "Claim Reward"}
               </button>
             )}
@@ -69,20 +90,38 @@ const styles = {
   modal: {
     width: "100%",
     maxWidth: "500px",
-    background: "#fff",
+    background: "#1f2933",
     borderRadius: "12px",
     overflow: "hidden",
     boxShadow: "0 10px 30px rgba(0,0,0,0.3)",
+    color: "#fff",
   },
   header: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
     padding: "16px",
-    borderBottom: "1px solid #eee",
+    borderBottom: "1px solid #374151",
   },
   body: {
     padding: "16px",
+  },
+  timerBox: {
+    marginTop: "10px",
+    padding: "10px 12px",
+    borderRadius: "8px",
+    background: "#111827",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  timerLabel: {
+    fontSize: "14px",
+    color: "#9ca3af",
+  },
+  timerValue: {
+    fontSize: "18px",
+    fontWeight: "bold",
   },
   actions: {
     marginTop: "20px",
@@ -91,14 +130,15 @@ const styles = {
   },
   closeBtn: {
     border: "none",
-    background: "#eee",
+    background: "#4b5563",
+    color: "#fff",
     borderRadius: "6px",
     padding: "6px 10px",
     cursor: "pointer",
   },
   openBtn: {
     border: "none",
-    background: "#0984e3",
+    background: "#3b82f6",
     color: "#fff",
     borderRadius: "8px",
     padding: "10px 16px",
@@ -114,7 +154,7 @@ const styles = {
   },
   claimBtnDisabled: {
     border: "none",
-    background: "#9ca3af",
+    background: "#6b7280",
     color: "#fff",
     borderRadius: "8px",
     padding: "10px 16px",

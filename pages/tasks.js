@@ -53,14 +53,24 @@ export default function TasksPage() {
   }, [address]);
 
   useEffect(() => {
-    const savedTask = localStorage.getItem("returnTask");
-    if (savedTask) {
-      const task = JSON.parse(savedTask);
-      localStorage.removeItem("returnTask");
-      setActiveTask(task);
-      setIsTaskOpen(true);
-      setTimeLeft(task.duration || 0);
-      setCanClaim(false);
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+
+    try {
+      const parsed = JSON.parse(raw);
+      const now = Date.now();
+      const remaining = Math.ceil((parsed.endTime - now) / 1000);
+
+      if (remaining > 0 && parsed.task?.type === "Click") {
+        setActiveTask(parsed.task);
+        setIsTaskOpen(true);
+        setTimeLeft(remaining);
+        setCanClaim(false);
+      } else {
+        clearSession();
+      }
+    } catch (e) {
+      clearSession();
     }
   }, []);
 
@@ -136,14 +146,21 @@ export default function TasksPage() {
   const openTaskUrl = () => {
     if (!activeTask) return;
 
+    // WATCH: no direct link here anymore
     if (activeTask.type === "Watch") {
-      window.open("https://omg10.com/4/11023405", "_blank");
+      // If you have a real watch URL, handle it here.
+      // Otherwise, leave as a no-op or simple info.
       return;
     }
 
-    if (activeTask.type === "Click" && activeTask.url) {
-      window.open(activeTask.url, "_blank");
+    // CLICK: Monetag Direct Link (SmartLink)
+    if (activeTask.type === "Click") {
+      const monetagLink = activeTask.url || "https://omg10.com/4/11023405";
+      window.open(monetagLink, "_blank");
+      return;
     }
+
+    // OFFERS / SURVEYS: no direct link unless you have a proper flow
   };
 
   const closeTaskModal = () => {
@@ -155,25 +172,49 @@ export default function TasksPage() {
     if (timerRef.current) clearInterval(timerRef.current);
   };
 
+  const STORAGE_KEY = "active_task_session";
+
+  const saveSession = (task, endTime) => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        task,
+        endTime,
+      })
+    );
+  };
+
+  const clearSession = () => {
+    localStorage.removeItem(STORAGE_KEY);
+  };
+
   const startTask = async (task) => {
     if (!address) return alert("Connect wallet");
     if (completed[task.id]) return;
 
-    await fetch("/api/tasks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "start",
-        wallet: address,
-        taskId: task.id,
-      }),
-    });
+    // Only allow click flow for Click task
+    if (task.type === "Click") {
+      await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "start",
+          wallet: address,
+          taskId: task.id,
+        }),
+      });
 
-    setActiveTask(task);
-    setIsTaskOpen(true);
-    setTimeLeft(task.duration || 0);
-    setCanClaim(false);
-    setClaiming(false);
+      const endTime = Date.now() + (task.duration || 0) * 1000;
+
+      setActiveTask(task);
+      setIsTaskOpen(true);
+      setTimeLeft(task.duration || 0);
+      setCanClaim(false);
+      setClaiming(false);
+      saveSession(task, endTime);
+    } else {
+      // For other types, you can implement their own logic later
+    }
   };
 
   const verifyTask = async (task) => {

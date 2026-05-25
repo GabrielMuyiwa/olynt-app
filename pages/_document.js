@@ -11,6 +11,12 @@ export default function Document() {
           content="b78d775e910c928e5216baa1b10d6235"
         />
 
+        {/* Clickadu verification meta */}
+        <meta
+          name="clckd"
+          content="3ab2b4c005d46eeda2225885fd6f297c"
+        />
+        
       </Head>
 
       <body>

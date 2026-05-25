@@ -1,8 +1,8 @@
 import db from "./firebaseAdmin";
 
-const DAILY_LIMIT = 0.1;
-const COOLDOWN = 20;
-const MAX_TASKS_PER_DAY = 10;
+const DAILY_LIMIT = 10;
+const COOLDOWN = 30;
+const MAX_TASKS_PER_DAY = 20;
 
 export default async function handler(req, res) {
   const { method } = req;

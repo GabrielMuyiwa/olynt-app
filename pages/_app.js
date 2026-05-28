@@ -5,6 +5,7 @@ import "@rainbow-me/rainbowkit/styles.css";
 import Script from "next/script";
 import MonetagScript from "../Components/MonetagScript";
 import InPagePush from "../Components/InPagePush";
+import Head from "next/head";
 
 import {
   getDefaultWallets,
@@ -87,6 +88,13 @@ export default function App({ Component, pageProps }) {
 
   return (
     <>
+      <Head>
+        <meta
+          name="6a97888e-site-verification"
+          content="4235aa6c981d9c60d674b7383a2cf118"
+        />
+      </Head>
+
       <WagmiConfig client={wagmiClient}>
         <RainbowKitProvider chains={chains} theme={myTheme}>
           <MonetagScript />

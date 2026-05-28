@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 //import InPagePush from "../Components/InPagePush";
+import AAdsBanner from "../Components/AAdsBanner";
 
 export default function ReferralPage() {
   const { address } = useAccount();
@@ -81,6 +82,8 @@ export default function ReferralPage() {
         color: "#fff",
       }}
     >
+      <AAdsBanner />
+      
       <h1>Referral Dashboard</h1>
 
       <div

@@ -14,18 +14,19 @@ const AAdsBanner = () => {
       <iframe
         data-aa="2439349"
         src="https://acceptable.a-ads.com/2439349/?size=Adaptive"
+        title="AAds Banner"
+        loading="eager"
         style={{
           border: 0,
           padding: 0,
-          width: "70%",
-          maxWidth: "720px",
-          minHeight: "90px",
+          width: "100%",
+          maxWidth: "728px",
+          height: "90px",
           display: "block",
           margin: "0 auto",
           overflow: "hidden",
           backgroundColor: "transparent",
         }}
-        title="A-Ads Banner"
       />
     </div>
   );

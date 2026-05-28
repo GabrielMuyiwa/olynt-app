@@ -78,12 +78,14 @@ export default function ReferralPage() {
   return (
     <div
       style={{
+        minHeight: "100vh",
         padding: "30px",
         color: "#fff",
+        backgroundColor: "#17142a",
       }}
     >
       <AAdsBanner />
-      
+
       <h1>Referral Dashboard</h1>
 
       <div

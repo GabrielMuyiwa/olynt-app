@@ -3,41 +3,30 @@ import React from "react";
 const AAdsBanner = () => {
   return (
     <div
-      id="frame"
       style={{
         width: "100%",
-        maxWidth: "720px", // Ensures it doesn’t exceed the header width
-        height: "auto",
+        margin: "20px auto",
+        position: "relative",
+        zIndex: 99998,
         textAlign: "center",
-        margin: "10px auto", // Adds spacing to prevent overlap
-        overflow: "hidden",
       }}
     >
       <iframe
-        data-aa="2381957"
-        src="//acceptable.a-ads.com/2381957"
+        data-aa="2439349"
+        src="https://acceptable.a-ads.com/2439349/?size=Adaptive"
         style={{
-          border: "0px",
-          padding: "0",
-          width: "100%",
-          height: "90px", // Ensures a proper fit
+          border: 0,
+          padding: 0,
+          width: "70%",
+          maxWidth: "720px",
+          minHeight: "90px",
+          display: "block",
+          margin: "0 auto",
           overflow: "hidden",
           backgroundColor: "transparent",
         }}
         title="A-Ads Banner"
-      ></iframe>
-      <a
-        style={{
-          display: "block",
-          textAlign: "right",
-          fontSize: "12px",
-          color: "#fff",
-        }}
-        id="frame-link"
-        href="https://aads.com/campaigns/new/?source_id=2381957&source_type=ad_unit&partner=2381957"
-      >
-        Advertise here
-      </a>
+      />
     </div>
   );
 };

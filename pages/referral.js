@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
+import InPagePush from "../Components/InPagePush";
+import AAdsBanner from "../Components/AAdsBanner";
 
 export default function ReferralPage() {
   const { address } = useAccount();
@@ -13,10 +15,8 @@ export default function ReferralPage() {
   });
 
   const [leaderboard, setLeaderboard] = useState([]);
-
   const [referralLink, setReferralLink] = useState("");
 
-  // BUILD THE LINK ON THE CLIENT
   useEffect(() => {
     if (typeof window !== "undefined" && address) {
       setReferralLink(`${window.location.origin}/?ref=${address}`);
@@ -25,11 +25,9 @@ export default function ReferralPage() {
     }
   }, [address]);
 
-  // LOAD REFERRAL DATA
   const loadData = async () => {
     if (!address) return;
 
-    // USER STATS
     const res = await fetch(`/api/referral-stats?wallet=${address}`);
     const data = await res.json();
 
@@ -39,7 +37,6 @@ export default function ReferralPage() {
       withdrawn: data.withdrawn || 0,
     });
 
-    // LEADERBOARD
     const boardRes = await fetch("/api/leaderboard");
     const boardData = await boardRes.json();
 
@@ -52,13 +49,11 @@ export default function ReferralPage() {
     }
   }, [address]);
 
-  // COPY LINK
   const copyLink = async () => {
     await navigator.clipboard.writeText(referralLink);
     alert("Referral link copied!");
   };
 
-  // WITHDRAW
   const withdrawReferral = async () => {
     const res = await fetch("/api/referral-withdraw", {
       method: "POST",
@@ -87,9 +82,12 @@ export default function ReferralPage() {
         color: "#fff",
       }}
     >
+      <InPagePush />
+
+      <AAdsBanner />
+
       <h1>Referral Dashboard</h1>
 
-      {/* REFERRAL LINK */}
       <div
         style={{
           background: "#111827",
@@ -124,7 +122,6 @@ export default function ReferralPage() {
         </button>
       </div>
 
-      {/* STATS */}
       <div
         style={{
           display: "grid",
@@ -133,7 +130,6 @@ export default function ReferralPage() {
           marginTop: "30px",
         }}
       >
-        {/* TOTAL REFERRALS */}
         <div
           style={{
             background: "#111827",
@@ -145,7 +141,6 @@ export default function ReferralPage() {
           <h1>{stats.referrals}</h1>
         </div>
 
-        {/* EARNINGS */}
         <div
           style={{
             background: "#111827",
@@ -157,7 +152,6 @@ export default function ReferralPage() {
           <h1>${stats.referralEarnings}</h1>
         </div>
 
-        {/* WITHDRAWN */}
         <div
           style={{
             background: "#111827",
@@ -170,7 +164,6 @@ export default function ReferralPage() {
         </div>
       </div>
 
-      {/* WITHDRAW BUTTON */}
       <button
         onClick={withdrawReferral}
         style={{
@@ -187,7 +180,6 @@ export default function ReferralPage() {
         Withdraw Referral Earnings
       </button>
 
-      {/* LEADERBOARD */}
       <div style={{ marginTop: "50px" }}>
         <h2>Top Referrers</h2>
 

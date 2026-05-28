@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useAccount } from "wagmi";
 
-//INTERNAL IMPORT
 import {
   Header,
   HeroSection,
@@ -20,6 +19,9 @@ import {
   Contact,
   Ask,
 } from "../Components/index";
+
+import InPagePush from "../Components/InPagePush";
+
 import {
   CONTRACT_DATA,
   deposit,
@@ -36,7 +38,6 @@ const index = () => {
   const [contactUs, setContactUs] = useState(false);
   const [poolID, setPoolID] = useState();
   const [withdrawPoolID, setWithdrawPoolID] = useState();
-
   const [poolDetails, setPoolDetails] = useState();
   const [selectedPool, setSelectedPool] = useState();
   const [selectedToken, setSelectedToken] = useState();
@@ -47,7 +48,6 @@ const index = () => {
       setLoader(true);
       const data = await CONTRACT_DATA(address);
       setPoolDetails(data);
-
       setLoader(false);
     }
   };
@@ -55,7 +55,6 @@ const index = () => {
   useEffect(() => {
     LOAD_DATA();
 
-    // SAVE REFERRAL CODE
     const ref = router.query.ref;
 
     if (ref && address && ref !== address) {
@@ -76,55 +75,55 @@ const index = () => {
 
   return (
     <div className="body-backgroundColor">
+      <InPagePush />
       <Header />
       <HeroSection
         poolDetails={poolDetails}
         addTokenToMetaMask={addTokenToMetaMask}
       />
 
-      {/* QUICK NAVIGATION */}
-     <div
-       style={{
-         display: "flex",
-         gap: "15px",
-         padding: "20px",
-         justifyContent: "center",
-         flexWrap: "wrap",
-       }}
-     >
-       <a href="/tasks">
-         <button
-           style={{
-             padding: "12px 20px",
-             background: "#00b894",
-             color: "#fff",
-             border: "none",
-             borderRadius: "10px",
-             cursor: "pointer",
-             fontWeight: "bold",
-           }}
-         >
-           Task Center
-         </button>
-       </a>
+      <div
+        style={{
+          display: "flex",
+          gap: "15px",
+          padding: "20px",
+          justifyContent: "center",
+          flexWrap: "wrap",
+        }}
+      >
+        <a href="/tasks">
+          <button
+            style={{
+              padding: "12px 20px",
+              background: "#00b894",
+              color: "#fff",
+              border: "none",
+              borderRadius: "10px",
+              cursor: "pointer",
+              fontWeight: "bold",
+            }}
+          >
+            Task Center
+          </button>
+        </a>
 
-       <a href="/referral">
-         <button
-           style={{
-             padding: "12px 20px",
-             background: "#0984e3",
-             color: "#fff",
-             border: "none",
-             borderRadius: "10px",
-             cursor: "pointer",
-             fontWeight: "bold",
-           }}
-         >
-           Referral System
-         </button>
-       </a>
-     </div>
-      
+        <a href="/referral">
+          <button
+            style={{
+              padding: "12px 20px",
+              background: "#0984e3",
+              color: "#fff",
+              border: "none",
+              borderRadius: "10px",
+              cursor: "pointer",
+              fontWeight: "bold",
+            }}
+          >
+            Referral System
+          </button>
+        </a>
+      </div>
+
       <Statistics poolDetails={poolDetails} />
       <Pools
         setPoolID={setPoolID}

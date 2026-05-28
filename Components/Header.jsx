@@ -43,44 +43,47 @@ const Header = ({ page }) => {
                 ))}
               </ul>
 
-              {/* A-Ads Banner with Mobile Optimization */}
               <div
                 id="frame"
                 style={{
                   width: "100%",
-                  maxWidth: "728px",
-                  height: "90px",
-                  overflow: "hidden",
-                  margin: "10px auto",
+                  maxWidth: "560px",
+                  margin: "8px auto",
                   display: "flex",
-                  justifyContent: "center",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  overflow: "hidden",
                 }}
               >
                 <iframe
-                  data-aa="2381957"
-                  src="//acceptable.a-ads.com/2381957"
+                  data-aa="2439349"
+                  src="https://acceptable.a-ads.com/2439349/?size=Adaptive"
+                  title="A-Ads Banner"
                   style={{
                     width: "100%",
-                    height: "100%",
-                    border: "0px",
+                    maxWidth: "560px",
+                    minHeight: "70px",
+                    border: "0",
                     padding: "0",
+                    overflow: "hidden",
                     backgroundColor: "transparent",
+                    display: "block",
                   }}
                 />
                 <a
+                  href="https://aads.com/campaigns/new/?source_id=2439349&source_type=ad_unit&partner=2439349"
                   style={{
                     display: "block",
                     textAlign: "right",
-                    fontSize: "12px",
+                    fontSize: "11px",
+                    lineHeight: "1.2",
+                    marginTop: "4px",
                   }}
-                  id="frame-link"
-                  href="https://aads.com/campaigns/new/?source_id=2381957&source_type=ad_unit&partner=2381957"
                 >
                   Advertise here
                 </a>
               </div>
 
-              {/* Wallet Connect Button */}
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <ConnectButton />
                 <a
@@ -100,22 +103,26 @@ const Header = ({ page }) => {
         </div>
       </div>
 
-      {/* Mobile Responsive Styles */}
       <style>
         {`
           @media (max-width: 768px) {
             .header__nav {
-              display: none; /* Hide nav on small screens */
+              display: none;
             }
 
             #frame {
-              height: 50px; /* Reduce ad size for mobile */
               max-width: 320px;
+              margin: 6px auto;
+            }
+
+            #frame iframe {
+              min-height: 60px;
             }
 
             .header__content {
               flex-direction: column;
               align-items: center;
+              gap: 10px;
             }
 
             .header__profile {

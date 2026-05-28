@@ -1,7 +1,6 @@
 import db from "../firebaseAdmin";
 
-const ADMIN =
-  process.env.NEXT_PUBLIC_ADMIN_ADDRESS?.toLowerCase();
+const ADMIN = process.env.NEXT_PUBLIC_ADMIN_ADDRESS?.toLowerCase();
 
 export default async function handler(req, res) {
   console.log("API HIT");
@@ -16,8 +15,7 @@ export default async function handler(req, res) {
     // =========================
     // ADMIN SECURITY
     // =========================
-    const adminWallet =
-      req.headers["x-admin-wallet"]?.toLowerCase();
+    const adminWallet = req.headers["x-admin-wallet"]?.toLowerCase();
 
     console.log("Admin wallet:", adminWallet);
     console.log("Expected admin:", ADMIN);
@@ -35,6 +33,7 @@ export default async function handler(req, res) {
       duration,
       type,
       url,
+      questions,
     } = req.body;
 
     console.log("Task data:", req.body);
@@ -45,9 +44,7 @@ export default async function handler(req, res) {
       });
     }
 
-    const docRef = db
-      .collection("tasks")
-      .doc(id);
+    const docRef = db.collection("tasks").doc(id);
 
     await docRef.set({
       id,
@@ -56,6 +53,7 @@ export default async function handler(req, res) {
       duration: Number(duration || 0),
       type: type || "Watch",
       url: url || "",
+      questions: Array.isArray(questions) ? questions : [],
       active: true,
       createdAt: Date.now(),
     });
@@ -64,7 +62,6 @@ export default async function handler(req, res) {
       success: true,
       message: "Task created",
     });
-
   } catch (error) {
     console.error("CREATE TASK ERROR:", error);
 

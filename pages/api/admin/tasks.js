@@ -32,7 +32,7 @@ export default async function handler(req, res) {
     // CREATE TASK
     // =========================
     if (method === "POST") {
-      const { title, reward, type, duration, url } = req.body;
+      const { title, reward, type, duration, url, questions } = req.body;
 
       if (!title || !reward || !type) {
         return res.status(400).json({ error: "Missing fields" });
@@ -44,11 +44,13 @@ export default async function handler(req, res) {
         type,
         duration: duration || 0,
         url: url || "",
+        questions: Array.isArray(questions) ? questions : [],
         createdAt: Date.now(),
         active: true,
       };
 
       const docRef = await db.collection("tasks").add(newTask);
+      
 
       return res.json({
         success: true,

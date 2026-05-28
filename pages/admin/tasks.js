@@ -4,6 +4,15 @@ import { useAccount } from "wagmi";
 
 const ADMIN = process.env.NEXT_PUBLIC_ADMIN_ADDRESS;
 
+const DEFAULT_QUESTIONS = `[
+  {
+    "id": "q1",
+    "question": "What was the main point of the video?",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correctAnswer": "Option B"
+  }
+]`;
+
 export default function AdminTasks() {
   const { address } = useAccount();
 
@@ -16,11 +25,9 @@ export default function AdminTasks() {
     type: "Watch",
     duration: "",
     url: "",
+    questions: DEFAULT_QUESTIONS,
   });
 
-  // =========================
-  // 🔐 ACCESS CONTROL
-  // =========================
   if (!address || address.toLowerCase() !== ADMIN?.toLowerCase()) {
     return (
       <div style={{ padding: 40, color: "red" }}>
@@ -29,9 +36,6 @@ export default function AdminTasks() {
     );
   }
 
-  // =========================
-  // LOAD TASKS
-  // =========================
   const loadTasks = async () => {
     const res = await fetch("/api/admin/tasks", {
       headers: {
@@ -47,17 +51,26 @@ export default function AdminTasks() {
     if (address) loadTasks();
   }, [address]);
 
-  // =========================
-  // CREATE TASK
-  // =========================
   const createTask = async () => {
     if (!form.title || !form.reward) {
       return alert("Fill required fields");
     }
 
+    let parsedQuestions = [];
+    if (form.type === "Watch") {
+      try {
+        parsedQuestions = JSON.parse(form.questions || "[]");
+        if (!Array.isArray(parsedQuestions)) {
+          return alert("Questions must be a JSON array");
+        }
+      } catch (err) {
+        return alert("Invalid questions JSON");
+      }
+    }
+
     setLoading(true);
 
-    await fetch("/api/admin/tasks", {
+    const res = await fetch("/api/admin/tasks", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -69,8 +82,16 @@ export default function AdminTasks() {
         type: form.type,
         duration: Number(form.duration || 0),
         url: form.url,
+        questions: form.type === "Watch" ? parsedQuestions : [],
       }),
     });
+
+    const data = await res.json();
+
+    if (!data.success) {
+      setLoading(false);
+      return alert(data.error || "Task creation failed");
+    }
 
     setForm({
       title: "",
@@ -78,15 +99,14 @@ export default function AdminTasks() {
       type: "Watch",
       duration: "",
       url: "",
+      questions: DEFAULT_QUESTIONS,
     });
 
     await loadTasks();
     setLoading(false);
+    alert("✅ Task created");
   };
 
-  // =========================
-  // DELETE TASK
-  // =========================
   const deleteTask = async (id) => {
     if (!confirm("Delete this task?")) return;
 
@@ -106,9 +126,6 @@ export default function AdminTasks() {
     <div style={{ padding: 30, color: "#fff" }}>
       <h1>🛠 Admin Task Manager</h1>
 
-      {/* ========================= */}
-      {/* CREATE TASK */}
-      {/* ========================= */}
       <div
         style={{
           background: "#111",
@@ -123,17 +140,20 @@ export default function AdminTasks() {
           placeholder="Title"
           value={form.title}
           onChange={(e) => setForm({ ...form, title: e.target.value })}
+          style={inputStyle}
         />
 
         <input
           placeholder="Reward (e.g 0.02)"
           value={form.reward}
           onChange={(e) => setForm({ ...form, reward: e.target.value })}
+          style={inputStyle}
         />
 
         <select
           value={form.type}
           onChange={(e) => setForm({ ...form, type: e.target.value })}
+          style={inputStyle}
         >
           <option>Watch</option>
           <option>Click</option>
@@ -145,22 +165,47 @@ export default function AdminTasks() {
           placeholder="Duration (seconds)"
           value={form.duration}
           onChange={(e) => setForm({ ...form, duration: e.target.value })}
+          style={inputStyle}
         />
 
         <input
           placeholder="URL (optional)"
           value={form.url}
           onChange={(e) => setForm({ ...form, url: e.target.value })}
+          style={inputStyle}
         />
 
-        <button onClick={createTask} disabled={loading}>
+        {form.type === "Watch" && (
+          <>
+            <label style={{ display: "block", marginTop: 12, marginBottom: 6 }}>
+              Quiz Questions JSON
+            </label>
+            <textarea
+              value={form.questions}
+              onChange={(e) => setForm({ ...form, questions: e.target.value })}
+              style={{
+                ...inputStyle,
+                minHeight: 180,
+                fontFamily: "monospace",
+                whiteSpace: "pre-wrap",
+              }}
+              placeholder='[
+          {
+            "id": "q1",
+            "question": "What was the main point?",
+            "options": ["A", "B", "C", "D"],
+            "correctAnswer": "B"
+          }
+        ]'
+            />
+          </>
+        )}
+
+        <button onClick={createTask} disabled={loading} style={buttonStyle}>
           {loading ? "Creating..." : "Create Task"}
         </button>
       </div>
 
-      {/* ========================= */}
-      {/* TASK LIST */}
-      {/* ========================= */}
       <div>
         <h2>All Tasks</h2>
 
@@ -185,10 +230,14 @@ export default function AdminTasks() {
             {task.url && (
               <p>
                 URL:{" "}
-                <a href={task.url} target="_blank">
+                <a href={task.url} target="_blank" rel="noreferrer">
                   Open
                 </a>
               </p>
+            )}
+
+            {task.questions?.length > 0 && (
+              <p>Quiz Questions: {task.questions.length}</p>
             )}
 
             <button
@@ -209,3 +258,23 @@ export default function AdminTasks() {
     </div>
   );
 }
+
+const inputStyle = {
+  width: "100%",
+  padding: "12px",
+  marginTop: "10px",
+  background: "#1f2937",
+  border: "1px solid #374151",
+  color: "white",
+  borderRadius: "8px",
+};
+
+const buttonStyle = {
+  marginTop: "20px",
+  padding: "12px 20px",
+  background: "#2563eb",
+  color: "white",
+  border: "none",
+  borderRadius: "8px",
+  cursor: "pointer",
+};

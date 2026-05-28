@@ -1,12 +1,17 @@
 "use client";
+
 import { useState, useEffect, useRef } from "react";
 import { useAccount } from "wagmi";
 import { ethers } from "ethers";
 import stakingAbi from "../Context/StakingDapp.json";
 import TaskModal from "../Components/TaskModal";
+import WatchTaskPlayer from "../Components/WatchTaskPlayer";
+import InPagePush from "../Components/InPagePush";
+import AAdsBanner from "../Components/AAdsBanner";
 
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_STAKING_DAPP;
 const tabs = ["Watch", "Click", "Offers", "Surveys"];
+const STORAGE_KEY = "active_task_session";
 
 export default function TasksPage() {
   const { address } = useAccount();
@@ -21,6 +26,7 @@ export default function TasksPage() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [canClaim, setCanClaim] = useState(false);
   const [claiming, setClaiming] = useState(false);
+  const [watchTaskOpen, setWatchTaskOpen] = useState(false);
   const timerRef = useRef(null);
 
   const loadTasks = async () => {
@@ -34,17 +40,13 @@ export default function TasksPage() {
   };
 
   useEffect(() => {
-    if (address) {
-      loadTasks();
-    }
+    if (address) loadTasks();
   }, [address]);
 
   const getBalance = async () => {
     if (!address) return;
-
     const res = await fetch(`/api/tasks?wallet=${address}`);
     const data = await res.json();
-
     setEarnings(data.taskBalance || 0);
   };
 
@@ -61,11 +63,19 @@ export default function TasksPage() {
       const now = Date.now();
       const remaining = Math.ceil((parsed.endTime - now) / 1000);
 
-      if (remaining > 0 && parsed.task?.type === "Click") {
+      if (remaining > 0 && parsed.task) {
         setActiveTask(parsed.task);
-        setIsTaskOpen(true);
         setTimeLeft(remaining);
         setCanClaim(false);
+        setClaiming(false);
+
+        if (parsed.task.type === "Click") {
+          setIsTaskOpen(true);
+        }
+
+        if (parsed.task.type === "Watch") {
+          setWatchTaskOpen(true);
+        }
       } else {
         clearSession();
       }
@@ -98,7 +108,7 @@ export default function TasksPage() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isTaskOpen]);
+  }, [isTaskOpen, timeLeft]);
 
   useEffect(() => {
     if (timeLeft === 0 && isTaskOpen) {
@@ -111,10 +121,7 @@ export default function TasksPage() {
     try {
       const res = await fetch("/api/leaderboard");
       const data = await res.json();
-
-      if (data.success) {
-        setLeaderboard(data.leaderboard);
-      }
+      if (data.success) setLeaderboard(data.leaderboard);
     } catch (err) {
       console.error(err);
     }
@@ -133,46 +140,10 @@ export default function TasksPage() {
 
     fetch("/api/referral", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        wallet: address,
-        referrer: ref,
-      }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ wallet: address, referrer: ref }),
     });
   }, [address]);
-
-  const openTaskUrl = () => {
-    if (!activeTask) return;
-
-    // WATCH: no direct link here anymore
-    if (activeTask.type === "Watch") {
-      // If you have a real watch URL, handle it here.
-      // Otherwise, leave as a no-op or simple info.
-      return;
-    }
-
-    // CLICK: Monetag Direct Link (SmartLink)
-    if (activeTask.type === "Click") {
-      const monetagLink = activeTask.url || "https://omg10.com/4/11023405";
-      window.open(monetagLink, "_blank");
-      return;
-    }
-
-    // OFFERS / SURVEYS: no direct link unless you have a proper flow
-  };
-
-  const closeTaskModal = () => {
-    setIsTaskOpen(false);
-    setActiveTask(null);
-    setTimeLeft(0);
-    setCanClaim(false);
-    setClaiming(false);
-    if (timerRef.current) clearInterval(timerRef.current);
-  };
-
-  const STORAGE_KEY = "active_task_session";
 
   const saveSession = (task, endTime) => {
     localStorage.setItem(
@@ -188,11 +159,38 @@ export default function TasksPage() {
     localStorage.removeItem(STORAGE_KEY);
   };
 
+  const openTaskUrl = () => {
+    if (!activeTask) return;
+
+    if (activeTask.type === "Click") {
+      const monetagLink = activeTask.url || "https://omg10.com/4/11023405";
+      window.open(monetagLink, "_blank");
+    }
+  };
+
+  const closeTaskModal = () => {
+    setIsTaskOpen(false);
+    setActiveTask(null);
+    setTimeLeft(0);
+    setCanClaim(false);
+    setClaiming(false);
+    if (timerRef.current) clearInterval(timerRef.current);
+    clearSession();
+  };
+
+  const closeWatchTask = () => {
+    setWatchTaskOpen(false);
+    setActiveTask(null);
+    setTimeLeft(0);
+    setCanClaim(false);
+    setClaiming(false);
+    clearSession();
+  };
+
   const startTask = async (task) => {
     if (!address) return alert("Connect wallet");
     if (completed[task.id]) return;
 
-    // Only allow click flow for Click task
     if (task.type === "Click") {
       await fetch("/api/tasks", {
         method: "POST",
@@ -212,8 +210,27 @@ export default function TasksPage() {
       setCanClaim(false);
       setClaiming(false);
       saveSession(task, endTime);
-    } else {
-      // For other types, you can implement their own logic later
+      return;
+    }
+
+    if (task.type === "Watch") {
+      await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "start",
+          wallet: address,
+          taskId: task.id,
+        }),
+      });
+
+      const endTime = Date.now() + (task.duration || 0) * 1000;
+
+      setActiveTask(task);
+      setWatchTaskOpen(true);
+      setTimeLeft(task.duration || 0);
+      saveSession(task, endTime);
+      return;
     }
   };
 
@@ -248,9 +265,7 @@ export default function TasksPage() {
     try {
       setClaiming(true);
       const ok = await verifyTask(activeTask);
-      if (ok) {
-        closeTaskModal();
-      }
+      if (ok) closeTaskModal();
     } finally {
       setClaiming(false);
     }
@@ -271,7 +286,6 @@ export default function TasksPage() {
       });
 
       const data = await res.json();
-
       if (!data.success) return alert(data.error);
 
       const provider = new ethers.providers.Web3Provider(window.ethereum);
@@ -285,7 +299,6 @@ export default function TasksPage() {
       );
 
       const amountWei = ethers.utils.parseUnits(data.amount.toString(), 18);
-
       const tx = await contract.claimTaskReward(amountWei, data.signature);
       await tx.wait();
 
@@ -327,17 +340,12 @@ export default function TasksPage() {
     try {
       const res = await fetch("/api/referral-withdraw", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ wallet: address }),
       });
 
       const data = await res.json();
-
-      if (!data.success) {
-        return alert(data.error);
-      }
+      if (!data.success) return alert(data.error);
 
       const { signature, amount } = data;
 
@@ -352,7 +360,6 @@ export default function TasksPage() {
       );
 
       const amountWei = ethers.utils.parseUnits(amount.toString(), 18);
-
       const tx = await contract.claimTaskReward(amountWei, signature);
       await tx.wait();
 
@@ -367,14 +374,18 @@ export default function TasksPage() {
   const visibleTasks = filteredTasks.filter((t) => t.active);
 
   return (
-    <div 
-      style={{ 
+    <div
+      style={{
         minHeight: "100vh",
-        padding: "20px", 
-        color: "#fff", 
-        backgroundColor: "#17142a", // or your main app bg color
+        padding: "20px",
+        color: "#fff",
+        backgroundColor: "#17142a",
       }}
     >
+      <InPagePush />
+
+      <AAdsBanner />
+
       <h1>Task Center</h1>
 
       <p>Total Earned: ${earnings.toFixed(2)}</p>
@@ -425,6 +436,17 @@ export default function TasksPage() {
           </button>
         </div>
       ))}
+
+      {watchTaskOpen && activeTask?.type === "Watch" && (
+        <WatchTaskPlayer
+          task={activeTask}
+          onClose={closeWatchTask}
+          onComplete={async () => {
+            const ok = await verifyTask(activeTask);
+            if (ok) closeWatchTask();
+          }}
+        />
+      )}
 
       <div style={{ marginTop: 30 }}>
         <button

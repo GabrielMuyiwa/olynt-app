@@ -5,6 +5,15 @@ import { useAccount } from "wagmi";
 
 const ADMIN = process.env.NEXT_PUBLIC_ADMIN_ADDRESS?.toLowerCase();
 
+const DEFAULT_QUESTIONS = `[
+  {
+    "id": "q1",
+    "question": "What was the main point of the video?",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correctAnswer": "Option B"
+  }
+]`;
+
 export default function AdminDashboard() {
   const { address } = useAccount();
 
@@ -25,6 +34,7 @@ export default function AdminDashboard() {
     duration: "",
     type: "Watch",
     url: "",
+    questions: DEFAULT_QUESTIONS,
   });
 
   useEffect(() => {
@@ -121,13 +131,28 @@ export default function AdminDashboard() {
 
   // CREATE TASK (admin API; with x-admin-wallet)
   const createTask = async () => {
+    let parsedQuestions = [];
+    if (form.type === "Watch") {
+      try {
+        parsedQuestions = JSON.parse(form.questions || "[]");
+        if (!Array.isArray(parsedQuestions)) {
+          return alert("Questions must be a JSON array");
+        }
+      } catch (err) {
+        return alert("Invalid questions JSON");
+      }
+    }
+
     const res = await fetch("/api/admin/create-task", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "x-admin-wallet": address.toLowerCase(),
       },
-      body: JSON.stringify(form),
+      body: JSON.stringify({
+        ...form,
+        questions: form.type === "Watch" ? parsedQuestions : [],
+      }),
     });
 
     const data = await res.json();
@@ -141,6 +166,7 @@ export default function AdminDashboard() {
         duration: "",
         type: "Watch",
         url: "",
+        questions: DEFAULT_QUESTIONS,
       });
       loadTasks();
       loadStats();
@@ -166,7 +192,6 @@ export default function AdminDashboard() {
       >
         Admin Dashboard
       </h1>
-      
 
       {/* STATS */}
       <div
@@ -223,7 +248,7 @@ export default function AdminDashboard() {
           <h3>Total Referrals</h3>
           <h1>{stats.totalReferrals}</h1>
         </div>
-        
+
         <div
           style={{
             marginTop: "40px",
@@ -284,9 +309,7 @@ export default function AdminDashboard() {
         <input
           placeholder="Duration"
           value={form.duration}
-          onChange={(e) =>
-            setForm({ ...form, duration: e.target.value })
-          }
+          onChange={(e) => setForm({ ...form, duration: e.target.value })}
           style={inputStyle}
         />
         <select
@@ -305,6 +328,33 @@ export default function AdminDashboard() {
           onChange={(e) => setForm({ ...form, url: e.target.value })}
           style={inputStyle}
         />
+
+        {form.type === "Watch" && (
+          <>
+            <label
+              style={{
+                display: "block",
+                marginTop: "12px",
+                marginBottom: "6px",
+                color: "#9ca3af",
+              }}
+            >
+              Quiz Questions JSON
+            </label>
+            <textarea
+              value={form.questions}
+              onChange={(e) => setForm({ ...form, questions: e.target.value })}
+              style={{
+                ...inputStyle,
+                minHeight: "180px",
+                fontFamily: "monospace",
+                whiteSpace: "pre-wrap",
+              }}
+              placeholder={`[\n  {\n    "id": "q1",\n    "question": "What was the main point?",\n    "options": ["A", "B", "C", "D"],\n    "correctAnswer": "B"\n  }\n]`}
+            />
+          </>
+        )}
+
         <button onClick={createTask} style={buttonStyle}>
           Create Task
         </button>
@@ -336,6 +386,10 @@ export default function AdminDashboard() {
             <p>Duration: {task.duration}s</p>
             <p>Type: {task.type}</p>
             <p>Status: {task.active ? "🟢 Active" : "🔴 Disabled"}</p>
+
+            {task.questions?.length > 0 && (
+              <p>Quiz Questions: {task.questions.length}</p>
+            )}
 
             {/* ACTION BUTTONS */}
             <div

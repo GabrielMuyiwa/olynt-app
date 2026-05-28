@@ -1,6 +1,5 @@
 import React from "react";
 
-// INTERNAL IMPORT
 import {
   TiSocialTwitter,
   TiSocialLinkedin,
@@ -72,37 +71,14 @@ const Footer = () => {
             <h6 className="footer__title">Support</h6>
             <div className="footer__nav">
               <a href="#">Help center</a>
-              <a href="https://medium.com/@grainfifarm/how-to-navigate-the-grainfi-dapp-a-step-by-step-guide-b45262cc11ec">How it works</a>
+              <a href="https://medium.com/@grainfifarm/how-to-navigate-the-grainfi-dapp-a-step-by-step-guide-b45262cc11ec">
+                How it works
+              </a>
               <a href="#">Privacy policy</a>
               <a href="#">Terms & Conditions</a>
             </div>
           </div>
         </div>
-
-        {/* A-Ads Banner - Responsive & Properly Fitting */}
-        <div id="ad-container" style={{ textAlign: "center", margin: "20px 0" }}>
-          <iframe
-            data-aa="2381957"
-            src="//acceptable.a-ads.com/2381957"
-            style={{
-              width: "100%",
-              maxWidth: "728px",
-              height: "auto",
-              minHeight: "90px",
-              border: "0px",
-              padding: "0",
-              overflow: "hidden",
-              backgroundColor: "transparent",
-            }}
-          ></iframe>
-          <a
-            href="https://aads.com/campaigns/new/?source_id=2381957&source_type=ad_unit&partner=2381957"
-            style={{ display: "block", textAlign: "right", fontSize: "12px" }}
-          >
-            Advertise here
-          </a>
-        </div>
-        {/* End of A-Ads Banner */}
 
         <div className="row">
           <div className="col-12">
@@ -115,7 +91,9 @@ const Footer = () => {
                 ))}
               </div>
               <small className="footer__copyright">
-                <a target="_blank" rel="noopener noreferrer">© {new Date().getFullYear()} GrainFi</a>
+                <a target="_blank" rel="noopener noreferrer">
+                  © {new Date().getFullYear()} GrainFi
+                </a>
               </small>
             </div>
           </div>

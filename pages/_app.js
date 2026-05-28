@@ -2,6 +2,9 @@ import "../styles/globals.css";
 import toast, { Toaster } from "react-hot-toast";
 import merge from "lodash/merge";
 import "@rainbow-me/rainbowkit/styles.css";
+import Script from "next/script";
+import MonetagScript from "../Components/MonetagScript";
+import InPagePush from "../Components/InPagePush";
 
 import {
   getDefaultWallets,
@@ -13,7 +16,6 @@ import {
 import { chain, configureChains, createClient, WagmiConfig } from "wagmi";
 import { jsonRpcProvider } from "wagmi/providers/jsonRpc";
 
-//AMOY RPC URL
 const AMOY = process.env.NEXT_PUBLIC_AMOY_RPC_URL;
 const EXPLORER = process.env.NEXT_PUBLIC_EXPLORER;
 
@@ -24,7 +26,6 @@ const NAME = process.env.NEXT_PUBLIC_NETWORK_NAME;
 const NETWORK = process.env.NEXT_PUBLIC_NETWORK;
 
 export default function App({ Component, pageProps }) {
-  //AMOY
   const { chains, provider } = configureChains(
     [
       {
@@ -88,18 +89,18 @@ export default function App({ Component, pageProps }) {
     <>
       <WagmiConfig client={wagmiClient}>
         <RainbowKitProvider chains={chains} theme={myTheme}>
+          <MonetagScript />
           <Component {...pageProps} />
           <Toaster />
         </RainbowKitProvider>
       </WagmiConfig>
 
-      <script src="js/bootstrap.bundle.min.js"></script>
-      <script src="js/smooth-scrollbar.js"></script>
-      <script src="js/splide.min.js"></script>
-      <script src="js/three.min.js"></script>
-      <script src="js/vanta.fog.min.js"></script>
-      <script src="js/main.js"></script>
+      <Script src="/js/bootstrap.bundle.min.js" strategy="afterInteractive" />
+      <Script src="/js/smooth-scrollbar.js" strategy="afterInteractive" />
+      <Script src="/js/splide.min.js" strategy="afterInteractive" />
+      <Script src="/js/three.min.js" strategy="afterInteractive" />
+      <Script src="/js/vanta.fog.min.js" strategy="afterInteractive" />
+      <Script src="/js/main.js" strategy="afterInteractive" />
     </>
   );
 }
- 

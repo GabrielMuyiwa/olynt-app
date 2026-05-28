@@ -6,7 +6,7 @@ import { ethers } from "ethers";
 import stakingAbi from "../Context/StakingDapp.json";
 import TaskModal from "../Components/TaskModal";
 import WatchTaskPlayer from "../Components/WatchTaskPlayer";
-import InPagePush from "../Components/InPagePush";
+//import InPagePush from "../Components/InPagePush";
 import AAdsBanner from "../Components/AAdsBanner";
 
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_STAKING_DAPP;
@@ -382,8 +382,6 @@ export default function TasksPage() {
         backgroundColor: "#17142a",
       }}
     >
-      <InPagePush />
-
       <AAdsBanner />
 
       <h1>Task Center</h1>

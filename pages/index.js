@@ -20,7 +20,7 @@ import {
   Ask,
 } from "../Components/index";
 
-import InPagePush from "../Components/InPagePush";
+//import InPagePush from "../Components/InPagePush";
 
 import {
   CONTRACT_DATA,
@@ -75,7 +75,6 @@ const index = () => {
 
   return (
     <div className="body-backgroundColor">
-      <InPagePush />
       <Header />
       <HeroSection
         poolDetails={poolDetails}

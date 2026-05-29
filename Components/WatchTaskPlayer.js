@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import AdsterraSocialBar from "./AdsterraSocialBar";
 
 const YT_SRC = "https://www.youtube.com/iframe_api";
 
@@ -206,6 +207,7 @@ export default function WatchTaskPlayer({ task, onClose, onComplete }) {
 
   return (
     <div style={styles.wrap}>
+      <AdsterraSocialBar />
       <div style={styles.head}>
         <div>
           <h2 style={{ margin: 0 }}>{task?.title || "Watch Task"}</h2>
@@ -223,6 +225,7 @@ export default function WatchTaskPlayer({ task, onClose, onComplete }) {
         <span>Time left: {timeLeft}s</span>
       </div>
 
+    {process.env.NODE_ENV === "development" && (
       <div style={styles.debugBox}>
         <div><strong>Debug</strong></div>
         <div>Raw URL: {String(debug.rawUrl || "none")}</div>
@@ -232,6 +235,7 @@ export default function WatchTaskPlayer({ task, onClose, onComplete }) {
         <div>Ready: {String(ready)}</div>
         <div>Playing: {String(playing)}</div>
       </div>
+    )}
 
       {!showQuiz ? (
         <div style={styles.actions}>

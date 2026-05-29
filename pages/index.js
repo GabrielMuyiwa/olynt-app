@@ -76,7 +76,6 @@ const index = () => {
   return (
     <div className="body-backgroundColor">
       <Header />
-      <AdsterraBanner />
       <HeroSection
         poolDetails={poolDetails}
         addTokenToMetaMask={addTokenToMetaMask}
@@ -123,6 +122,8 @@ const index = () => {
           </button>
         </a>
       </div>
+
+      <AdsterraBanner />
 
       <Statistics poolDetails={poolDetails} />
       <Pools

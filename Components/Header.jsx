@@ -29,7 +29,7 @@ const Header = ({ page }) => {
                 <img src="img/logo.svg" alt="GrainFi Logo" />
               </a>
 
-              <span className="header__tagline">GRAINFI FARM</span>
+              <span className="header__tagline">OLYNT</span>
 
               <ul className="header__nav" id="header__nav">
                 {navigation.map((item, index) => (
@@ -45,6 +45,7 @@ const Header = ({ page }) => {
 
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <ConnectButton />
+                {/*
                 <a
                   data-bs-target="#modal-deposit1"
                   type="button"
@@ -54,8 +55,9 @@ const Header = ({ page }) => {
                   <i className="ti ti-user-circle">
                     <MdGeneratingTokens />
                   </i>
-                  <span>Get GrainFi</span>
+                  <span>Get OLYNT</span>
                 </a>
+                */}
               </div>
             </div>
           </div>

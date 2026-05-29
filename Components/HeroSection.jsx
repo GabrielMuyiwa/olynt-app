@@ -49,13 +49,13 @@ const HeroSection = ({ poolDetails, addTokenToMetaMask }) => {
           <div className="col-12 col-lg-7 col-xl-6">
             <div className="hero__content hero__content--first">
               <h1 className="hero__title">
-                <strong>GrainFi Farm</strong> <br />
-                <span className="smaller-text">
-                  empowers users to plant and harvest digital assets through
-                  blockchain-based yield farming.
+                <strong>OPEN LEARNING YIELD NETWORK (OLYNT) </strong> <br />
+                <span className="smaller-text">                 
+                  Learn, Complete tasks. Track progress. Earn rewards.
                 </span>
               </h1>
               <div className="hero__btns">
+                {/*
                 <a
                   data-bs-target="#modal-deposit1"
                   type="button"
@@ -64,6 +64,7 @@ const HeroSection = ({ poolDetails, addTokenToMetaMask }) => {
                 >
                   Get {tokenDetails?.symbol || ""} Token
                 </a>
+                */}
                 <a
                   onClick={() => addTokenToMetaMask()}
                   className="hero__btn hero__btn--light"
@@ -73,6 +74,7 @@ const HeroSection = ({ poolDetails, addTokenToMetaMask }) => {
               </div>
             </div>
           </div>
+          {/*
           <div className="col-12 col-md-6 col-lg-5 col-xl-4 offset-xl-2">
             <div className="hero__content hero__content--second">
               <div className="node node--hero">
@@ -140,6 +142,7 @@ const HeroSection = ({ poolDetails, addTokenToMetaMask }) => {
               </div>
             </div>
           </div>
+          */}
         </div>
       </div>
     </section>

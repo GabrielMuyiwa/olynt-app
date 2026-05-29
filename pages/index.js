@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useAccount } from "wagmi";
-
+import AdsterraBanner from "../Components/AdsterraBanner";
 import {
   Header,
   HeroSection,
@@ -76,6 +76,7 @@ const index = () => {
   return (
     <div className="body-backgroundColor">
       <Header />
+      <AdsterraBanner />
       <HeroSection
         poolDetails={poolDetails}
         addTokenToMetaMask={addTokenToMetaMask}

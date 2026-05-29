@@ -8,6 +8,7 @@ import TaskModal from "../Components/TaskModal";
 import WatchTaskPlayer from "../Components/WatchTaskPlayer";
 //import InPagePush from "../Components/InPagePush";
 import AAdsBanner from "../Components/AAdsBanner";
+import AdsterraBanner from "../Components/AdsterraBanner";
 
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_STAKING_DAPP;
 const tabs = ["Watch", "Click", "Offers", "Surveys"];
@@ -384,6 +385,7 @@ export default function TasksPage() {
     >
       <AAdsBanner />
 
+      <AdsterraBanner />
       <h1>Task Center</h1>
 
       <p>Total Earned: ${earnings.toFixed(2)}</p>

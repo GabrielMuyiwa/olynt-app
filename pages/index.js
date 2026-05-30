@@ -73,8 +73,8 @@ const index = () => {
     }
   }, [address, router.query]);
 
-  return (
-    <div className="body-backgroundColor">
+  return (<
+    div className="body-backgroundColor">
       <Header />
       <HeroSection
         poolDetails={poolDetails}

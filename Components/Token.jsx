@@ -67,7 +67,7 @@ const Token = ({ poolDetails }) => {
                   <div className="invest__rate-wrap">
                     <div className="invest__rate">
                       <span>Total Planted</span>
-                      <p className="green">1 GrainFi = 0.01POL</p>
+                      <p className="green">1 OLYNT = </p>
                     </div>
                     <div className="invest__graph">
                       <img src="img/graph/graph4.svg" alt="" />

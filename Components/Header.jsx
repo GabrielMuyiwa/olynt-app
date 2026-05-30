@@ -14,7 +14,7 @@ const Header = ({ page }) => {
   ];
 
   return (
-    <header style={{ backgroundColor: "#17142a" }} className="header">
+    <header style={{ backgroundColor: "#070913" }} className="header">
       <div className="container">
         <div className="row">
           <div className="col-12">
@@ -26,10 +26,10 @@ const Header = ({ page }) => {
               </button>
 
               <a href="/" className="header__logo">
-                <img src="img/logo.svg" alt="GrainFi Logo" />
+                <img src="/img/logo.svg" alt="Olynt Logo" />
               </a>
 
-              <span className="header__tagline">OLYNT</span>
+              <span className="header__tagline"></span>
 
               <ul className="header__nav" id="header__nav">
                 {navigation.map((item, index) => (

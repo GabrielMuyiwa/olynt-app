@@ -2,7 +2,7 @@ import Script from "next/script";
 
 export default function AdsterraBanner() {
   return (
-    <div style={{ width: "100%", display: "flex", justifyContent: "center", margin: "20px 0" }}>
+    <div style={{ width: "100%", display: "flex", justifyContent: "center", margin: "20px 0", backgroundColor: "#17142a" }}>
       <Script
         id="adsterra-banner-config"
         strategy="afterInteractive"

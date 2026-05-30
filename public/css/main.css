@@ -139,7 +139,7 @@ ul {
 }
 
 .body--home {
-  /* background: url("../img/bg.png") no-repeat top center/cover #16142a; */
+   background: url("../img/bg.png") no-repeat top center/cover #16142a;
 }
 
 body::-webkit-scrollbar {

@@ -3,7 +3,7 @@
 @import url("../public/css/main.css");
 
 .body-backgroundColor{
-  background-color: #17142a;
+  background-color: #121522;
 }
 
 /* //LOADER */
@@ -13,7 +13,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: #17142abb; /* Semi-transparent background */
+  background-color: #121522; /* Semi-transparent background */
   display: flex;
   justify-content: center;
   align-items: center;

@@ -28,15 +28,15 @@ const Footer = () => {
               <img src="img/logo.svg" alt="GrainFi Logo" />
             </div>
             <p className="footer__tagline">
-              "Seeding the Future with Blockchain" <br />
-              "🌾 Grow. Earn. Thrive. | Powered by GrainFi" <br />
+              OLYNT NETWORK <br />
+              The Future of Rewarded Learning. <br />
             </p>
           </div>
 
           <div className="col-6 col-md-4 col-lg-3 col-xl-2 order-3 order-md-2 order-lg-2 order-xl-3 offset-md-2 offset-lg-0">
             <h6 className="footer__title">Company</h6>
             <div className="footer__nav">
-              <a href="#">About GrainFi</a>
+              <a href="#">About Olynt</a>
               <a href="#">Our news</a>
               <a href="#">License</a>
               <a href="#">Contacts</a>

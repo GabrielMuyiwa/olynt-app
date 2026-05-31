@@ -1,14 +1,21 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract StakingDapp is Ownable, ReentrancyGuard {
-    constructor(address initialOwner) Ownable(initialOwner) {}
+
+    constructor(address initialOwner)
+        Ownable(initialOwner)
+    {}
 
     using SafeERC20 for IERC20;
+
+    // =====================================================
+    // STRUCTS
+    // =====================================================
 
     struct UserInfo {
         uint256 amount;
@@ -28,21 +35,32 @@ contract StakingDapp is Ownable, ReentrancyGuard {
         uint256 poolID;
         uint256 amount;
         address user;
-        string typeOf;
+        string action;
         uint256 timestamp;
     }
 
-    // =========================
-    // TASK SECURITY STORAGE
-    // =========================
+    // =====================================================
+    // QUEST SECURITY STORAGE
+    // =====================================================
 
-    mapping(address => uint256) public taskRewards;
-    mapping(bytes32 => bool) public usedHashes; // 🔥 anti replay
     address public signer;
+    address public treasury;
 
-    uint256 public MAX_TASK_REWARD = 1 ether; // 🔥 limit per claim
+    uint256 public MAX_TASK_REWARD = 1 ether;
+    uint256 public MAX_DAILY_CLAIM = 50 ether;
 
-    // =========================
+    uint256 public claimAndStakeFee;   // native token fee
+    uint256 public earlyWithdrawFee;    // native token fee
+
+    mapping(bytes32 => bool) public usedHashes;
+    mapping(address => uint256) public taskRewards;
+
+    // daily anti-bot tracking
+    mapping(address => mapping(uint256 => uint256)) public dailyClaimed;
+
+    // =====================================================
+    // STAKING STORAGE
+    // =====================================================
 
     uint256 public poolCount;
     PoolInfo[] public poolInfo;
@@ -52,16 +70,26 @@ contract StakingDapp is Ownable, ReentrancyGuard {
 
     Notification[] public notifications;
 
-    // =========================
+    // =====================================================
     // ADMIN
-    // =========================
+    // =====================================================
 
     function setSigner(address _signer) external onlyOwner {
         signer = _signer;
     }
 
-    function setMaxTaskReward(uint256 _amount) external onlyOwner {
-        MAX_TASK_REWARD = _amount;
+    function setTreasury(address _treasury) external onlyOwner {
+        treasury = _treasury;
+    }
+
+    function setFees(uint256 _claimFee, uint256 _earlyFee) external onlyOwner {
+        claimAndStakeFee = _claimFee;
+        earlyWithdrawFee = _earlyFee;
+    }
+
+    function setLimits(uint256 _maxTask, uint256 _dailyLimit) external onlyOwner {
+        MAX_TASK_REWARD = _maxTask;
+        MAX_DAILY_CLAIM = _dailyLimit;
     }
 
     function addPool(
@@ -81,65 +109,173 @@ contract StakingDapp is Ownable, ReentrancyGuard {
         poolCount++;
     }
 
-    // =========================
-    // 🔥 SECURE TASK CLAIM
-    // =========================
+    // =====================================================
+    // CORE QUEST FUNCTION (CLAIM + STAKE)
+    // =====================================================
 
-    function claimTaskReward(
+    function claimAndStake(
+        uint256 pid,
         uint256 amount,
         uint256 nonce,
         uint256 deadline,
         bytes memory signature
-    ) external nonReentrant {
+    ) external payable nonReentrant {
 
         require(block.timestamp <= deadline, "Expired");
-        require(amount <= MAX_TASK_REWARD, "Too large");
+        require(amount <= MAX_TASK_REWARD, "Task too large");
 
+        // daily anti-bot limit
+        uint256 day = block.timestamp / 1 days;
+        require(
+            dailyClaimed[msg.sender][day] + amount <= MAX_DAILY_CLAIM,
+            "Daily limit reached"
+        );
+
+        // signature hash
         bytes32 messageHash = keccak256(
             abi.encodePacked(msg.sender, amount, nonce, deadline)
         );
 
-        require(!usedHashes[messageHash], "Already used");
+        require(!usedHashes[messageHash], "Replay detected");
 
         bytes32 ethSigned = keccak256(
             abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash)
         );
 
-        address recovered = recoverSigner(ethSigned, signature);
-        require(recovered == signer, "Invalid signer");
+        require(recoverSigner(ethSigned, signature) == signer, "Invalid signer");
 
         usedHashes[messageHash] = true;
+        dailyClaimed[msg.sender][day] += amount;
 
-        taskRewards[msg.sender] += amount;
+        // pay treasury fee in native token
+        if (claimAndStakeFee > 0) {
+            require(msg.value >= claimAndStakeFee, "Insufficient fee");
+            payable(treasury).transfer(msg.value);
+        }
 
-        _createNotification(0, amount, msg.sender, "TaskReward");
+        // STAKE DIRECTLY
+        _stake(pid, amount);
+
+        _createNotification(pid, amount, msg.sender, "ClaimAndStake");
     }
 
-    function withdrawTaskReward(uint256 _pid) external nonReentrant {
-        uint256 reward = taskRewards[msg.sender];
+    // internal staking logic
+    function _stake(uint256 pid, uint256 amount) internal {
+        PoolInfo storage pool = poolInfo[pid];
+        UserInfo storage user = userInfo[pid][msg.sender];
+
+        pool.depositedAmount += amount;
+        user.amount += amount;
+
+        user.lastRewardAt = block.timestamp;
+        user.lockUntil = block.timestamp + (pool.lockDays * 1 days);
+
+        depositedTokens[address(pool.depositToken)] += amount;
+    }
+
+    // =====================================================
+    // APY REWARD CLAIM
+    // =====================================================
+
+    function claimReward(uint256 pid) external nonReentrant {
+        PoolInfo storage pool = poolInfo[pid];
+        UserInfo storage user = userInfo[pid][msg.sender];
+
+        uint256 reward = _calcReward(user, pid);
         require(reward > 0, "No reward");
 
-        taskRewards[msg.sender] = 0;
+        user.lastRewardAt = block.timestamp;
 
-        IERC20 rewardToken = poolInfo[_pid].rewardToken;
-        rewardToken.safeTransfer(msg.sender, reward);
+        pool.rewardToken.safeTransfer(msg.sender, reward);
+
+        _createNotification(pid, reward, msg.sender, "ClaimReward");
     }
 
-    // =========================
-    // HELPERS
-    // =========================
+    // =====================================================
+    // WITHDRAW (WITH BURN PENALTY)
+    // =====================================================
+
+    function withdraw(uint256 pid, uint256 amount) external payable nonReentrant {
+        PoolInfo storage pool = poolInfo[pid];
+        UserInfo storage user = userInfo[pid][msg.sender];
+
+        require(user.amount >= amount, "Too much");
+
+        uint256 reward = _calcReward(user, pid);
+
+        bool early = block.timestamp < user.lockUntil;
+
+        // pay early withdrawal fee
+        if (early && earlyWithdrawFee > 0) {
+            require(msg.value >= earlyWithdrawFee, "Fee required");
+            payable(treasury).transfer(msg.value);
+        }
+
+        // send reward
+        if (reward > 0) {
+            pool.rewardToken.safeTransfer(msg.sender, reward);
+        }
+
+        // handle principal
+        if (amount > 0) {
+            user.amount -= amount;
+            pool.depositedAmount -= amount;
+
+            depositedTokens[address(pool.depositToken)] -= amount;
+
+            if (early) {
+                // BURN PENALTY (20% etc)
+                uint256 penalty = (amount * 20) / 100;
+                uint256 userReceive = amount - penalty;
+
+                pool.depositToken.safeTransfer(msg.sender, userReceive);
+
+                // send to dead address
+                pool.depositToken.safeTransfer(
+                    0x000000000000000000000000000000000000dEaD,
+                    penalty
+                );
+            } else {
+                pool.depositToken.safeTransfer(msg.sender, amount);
+            }
+        }
+
+        user.lastRewardAt = block.timestamp;
+
+        _createNotification(pid, amount, msg.sender, "Withdraw");
+    }
+
+    // =====================================================
+    // INTERNAL REWARD CALCULATION
+    // =====================================================
+
+    function _calcReward(UserInfo memory user, uint pid) internal view returns (uint256) {
+        PoolInfo memory pool = poolInfo[pid];
+
+        uint256 daysPassed = (block.timestamp - user.lastRewardAt) / 1 days;
+
+        if (daysPassed > pool.lockDays) {
+            daysPassed = pool.lockDays;
+        }
+
+        return (user.amount * daysPassed * pool.apy) / 36500;
+    }
+
+    // =====================================================
+    // SIGNATURE RECOVERY
+    // =====================================================
 
     function recoverSigner(bytes32 hash, bytes memory sig)
         internal pure returns (address)
     {
-        (bytes32 r, bytes32 s, uint8 v) = splitSignature(sig);
+        (bytes32 r, bytes32 s, uint8 v) = split(sig);
         return ecrecover(hash, v, r, s);
     }
 
-    function splitSignature(bytes memory sig)
+    function split(bytes memory sig)
         internal pure returns (bytes32 r, bytes32 s, uint8 v)
     {
-        require(sig.length == 65, "Invalid signature");
+        require(sig.length == 65, "bad sig");
 
         assembly {
             r := mload(add(sig, 32))
@@ -148,18 +284,26 @@ contract StakingDapp is Ownable, ReentrancyGuard {
         }
     }
 
+    // =====================================================
+    // HELPERS
+    // =====================================================
+
     function _createNotification(
-        uint256 _id,
-        uint256 _amount,
-        address _user,
-        string memory _typeOf
+        uint256 id,
+        uint256 amount,
+        address user,
+        string memory action
     ) internal {
         notifications.push(Notification({
-            poolID: _id,
-            amount: _amount,
-            user: _user,
-            typeOf: _typeOf,
+            poolID: id,
+            amount: amount,
+            user: user,
+            action: action,
             timestamp: block.timestamp
         }));
+    }
+
+    function getNotifications() external view returns (Notification[] memory) {
+        return notifications;
     }
 }

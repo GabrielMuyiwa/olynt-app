@@ -6,13 +6,18 @@ import { ethers } from "ethers";
 import stakingAbi from "../Context/StakingDapp.json";
 import TaskModal from "../Components/TaskModal";
 import WatchTaskPlayer from "../Components/WatchTaskPlayer";
-//import InPagePush from "../Components/InPagePush";
 import AAdsBanner from "../Components/AAdsBanner";
 import AdsterraBanner from "../Components/AdsterraBanner";
 
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_STAKING_DAPP;
 const tabs = ["Watch", "Click", "Offers", "Surveys"];
 const STORAGE_KEY = "active_task_session";
+
+const pools = [
+  { id: 0, name: "Flexible Pool" },
+  { id: 1, name: "30 Days Pool" },
+  { id: 2, name: "90 Days Pool" },
+];
 
 export default function TasksPage() {
   const { address } = useAccount();
@@ -21,6 +26,7 @@ export default function TasksPage() {
   const [tasks, setTasks] = useState([]);
   const [completed, setCompleted] = useState({});
   const [earnings, setEarnings] = useState(0);
+  const [selectedPoolId, setSelectedPoolId] = useState(0);
   const [leaderboard, setLeaderboard] = useState([]);
   const [activeTask, setActiveTask] = useState(null);
   const [isTaskOpen, setIsTaskOpen] = useState(false);
@@ -272,16 +278,18 @@ export default function TasksPage() {
     }
   };
 
-  const claimRewards = async () => {
+  const claimAndStakeRewards = async () => {
     if (!address) return alert("Connect wallet");
     if (earnings <= 0) return alert("No rewards");
+    if (!selectedPoolId && selectedPoolId !== 0) return alert("Select a pool");
 
     try {
-      const res = await fetch("/api/rewards", {
+      const res = await fetch("/api/claim-and-stake", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userAddress: address,
+          wallet: address,
+          poolId: selectedPoolId,
           amount: earnings,
         }),
       });
@@ -300,14 +308,27 @@ export default function TasksPage() {
       );
 
       const amountWei = ethers.utils.parseUnits(data.amount.toString(), 18);
-      const tx = await contract.claimTaskReward(amountWei, data.signature);
+
+      const tx = await contract.claimAndStake(
+        data.pid,
+        amountWei,
+        data.poolId,
+        data.nonce,
+        data.deadline,
+        data.signature,
+        {
+          value: ethers.utils.parseEther(data.fee.toString()),
+        }
+      );
+
       await tx.wait();
 
-      alert("✅ Claimed on blockchain!");
+      alert("✅ Claimed & Staked successfully!");
       setEarnings(0);
+      getBalance();
     } catch (err) {
       console.error(err);
-      alert("❌ Claim failed");
+      alert("❌ Claim & Stake failed");
     }
   };
 
@@ -384,13 +405,12 @@ export default function TasksPage() {
       }}
     >
       <AAdsBanner />
-
       <AdsterraBanner />
-      <h1>Task Center</h1>
 
+      <h1>Task Center</h1>
       <p>Total Earned: ${earnings.toFixed(2)}</p>
 
-      <div style={{ display: "flex", gap: "10px", marginBottom: 20 }}>
+      <div style={{ display: "flex", gap: "10px", marginBottom: 20, flexWrap: "wrap" }}>
         {tabs.map((tab) => (
           <button
             key={tab}
@@ -449,17 +469,38 @@ export default function TasksPage() {
       )}
 
       <div style={{ marginTop: 30 }}>
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ marginRight: 10, color: "#fff" }}>Choose pool:</label>
+          <select
+            value={selectedPoolId}
+            onChange={(e) => setSelectedPoolId(Number(e.target.value))}
+            style={{
+              padding: "10px",
+              background: "#111",
+              color: "#fff",
+              border: "1px solid #333",
+              borderRadius: "8px",
+            }}
+          >
+            {pools.map((pool) => (
+              <option key={pool.id} value={pool.id}>
+                {pool.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <button
-          onClick={claimRewards}
+          onClick={claimAndStakeRewards}
           style={{
             padding: "12px",
-            background: "#6c5ce7",
+            background: "#00b894",
             color: "#fff",
             border: "none",
-            cursor: "pointer",
+            fontWeight: "bold",
           }}
         >
-          Claim Rewards
+          Claim & Stake Rewards
         </button>
 
         <div
@@ -498,7 +539,8 @@ export default function TasksPage() {
             background: "#00cec9",
             color: "#fff",
             border: "none",
-            marginLeft: 10,
+            marginTop: 10,
+            marginRight: 10,
           }}
         >
           Withdraw Rewards
@@ -511,7 +553,7 @@ export default function TasksPage() {
             background: "#463a07",
             color: "#fff",
             border: "none",
-            marginLeft: 10,
+            marginTop: 10,
           }}
         >
           Withdraw Referral Rewards

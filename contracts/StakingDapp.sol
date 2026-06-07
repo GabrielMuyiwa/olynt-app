@@ -49,13 +49,11 @@ contract StakingDapp is Ownable, ReentrancyGuard {
     uint256 public MAX_TASK_REWARD = 1 ether;
     uint256 public MAX_DAILY_CLAIM = 50 ether;
 
-    uint256 public claimAndStakeFee;   // native token fee
-    uint256 public earlyWithdrawFee;    // native token fee
+    uint256 public claimAndStakeFee;
+    uint256 public earlyWithdrawFee;
 
     mapping(bytes32 => bool) public usedHashes;
     mapping(address => uint256) public taskRewards;
-
-    // daily anti-bot tracking
     mapping(address => mapping(uint256 => uint256)) public dailyClaimed;
 
     // =====================================================
@@ -116,24 +114,26 @@ contract StakingDapp is Ownable, ReentrancyGuard {
     function claimAndStake(
         uint256 pid,
         uint256 amount,
+        uint256 poolId,
         uint256 nonce,
         uint256 deadline,
         bytes memory signature
     ) external payable nonReentrant {
 
         require(block.timestamp <= deadline, "Expired");
-        require(amount <= MAX_TASK_REWARD, "Task too large");
+        require(pid == poolId, "Pool mismatch");
+        require(poolId < poolCount, "Invalid pool");
 
-        // daily anti-bot limit
+        require(amount <= taskRewards[msg.sender], "Exceeds reward balance");
+
         uint256 day = block.timestamp / 1 days;
         require(
             dailyClaimed[msg.sender][day] + amount <= MAX_DAILY_CLAIM,
             "Daily limit reached"
         );
 
-        // signature hash
         bytes32 messageHash = keccak256(
-            abi.encodePacked(msg.sender, amount, nonce, deadline)
+            abi.encodePacked(msg.sender, amount, poolId, nonce, deadline)
         );
 
         require(!usedHashes[messageHash], "Replay detected");
@@ -146,20 +146,18 @@ contract StakingDapp is Ownable, ReentrancyGuard {
 
         usedHashes[messageHash] = true;
         dailyClaimed[msg.sender][day] += amount;
+        taskRewards[msg.sender] -= amount;
 
-        // pay treasury fee in native token
         if (claimAndStakeFee > 0) {
             require(msg.value >= claimAndStakeFee, "Insufficient fee");
-            payable(treasury).transfer(msg.value);
+            payable(treasury).transfer(claimAndStakeFee);
         }
 
-        // STAKE DIRECTLY
         _stake(pid, amount);
 
         _createNotification(pid, amount, msg.sender, "ClaimAndStake");
     }
 
-    // internal staking logic
     function _stake(uint256 pid, uint256 amount) internal {
         PoolInfo storage pool = poolInfo[pid];
         UserInfo storage user = userInfo[pid][msg.sender];
@@ -205,18 +203,15 @@ contract StakingDapp is Ownable, ReentrancyGuard {
 
         bool early = block.timestamp < user.lockUntil;
 
-        // pay early withdrawal fee
         if (early && earlyWithdrawFee > 0) {
             require(msg.value >= earlyWithdrawFee, "Fee required");
-            payable(treasury).transfer(msg.value);
+            payable(treasury).transfer(earlyWithdrawFee);
         }
 
-        // send reward
         if (reward > 0) {
             pool.rewardToken.safeTransfer(msg.sender, reward);
         }
 
-        // handle principal
         if (amount > 0) {
             user.amount -= amount;
             pool.depositedAmount -= amount;
@@ -224,13 +219,11 @@ contract StakingDapp is Ownable, ReentrancyGuard {
             depositedTokens[address(pool.depositToken)] -= amount;
 
             if (early) {
-                // BURN PENALTY (20% etc)
                 uint256 penalty = (amount * 20) / 100;
                 uint256 userReceive = amount - penalty;
 
                 pool.depositToken.safeTransfer(msg.sender, userReceive);
 
-                // send to dead address
                 pool.depositToken.safeTransfer(
                     0x000000000000000000000000000000000000dEaD,
                     penalty
@@ -259,6 +252,10 @@ contract StakingDapp is Ownable, ReentrancyGuard {
         }
 
         return (user.amount * daysPassed * pool.apy) / 36500;
+    }
+
+    function pendingReward(uint256 pid, address user) public view returns (uint256) {
+        return _calcReward(userInfo[pid][user], pid);
     }
 
     // =====================================================

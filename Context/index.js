@@ -62,12 +62,12 @@ export async function CONTRACT_DATA(address) {
 
       const _notificationsArray = await Promise.all(
         notifications.map(
-          async ({ poolID, amount, user, typeOf, timestamp }) => {
+          async ({ poolID, amount, user, action, timestamp }) => {
             return {
               poolID: poolID.toNumber(),
               amount: toEth(amount),
               user: user,
-              typeOf: typeOf,
+              action: action,
               timestamp: CONVERT_TIMESTAMP_TO_READABLE(timestamp),
             };
           }
@@ -140,10 +140,8 @@ export async function deposit(poolID, amount, address) {
     const contractObj = await contract();
     const stakingTokenObj = await tokenContract();
     console.log(poolID, amount);
-    // Convert amount to Wei (assuming 18 decimal places, adjust if needed)
     const amountInWei = ethers.utils.parseUnits(amount.toString(), 18);
 
-    // Check current allowance
     const currentAllowance = await stakingTokenObj.allowance(
       address,
       contractObj.address
@@ -151,7 +149,6 @@ export async function deposit(poolID, amount, address) {
 
     console.log(`Current Allowance: ${currentAllowance.toString()}`);
 
-    // If the current allowance is less than the amount to be staked, prompt the user to approve
     if (currentAllowance.lt(amountInWei)) {
       notifySuccess("Approving token...");
       const approveTx = await stakingTokenObj.approve(
@@ -166,7 +163,6 @@ export async function deposit(poolID, amount, address) {
       amountInWei
     );
 
-    // Proceed with staking
     notifySuccess("Staking token..");
     const stakeTx = await contractObj.deposit(poolID, amountInWei, {
       gasLimit: gasEstimation,
@@ -210,7 +206,6 @@ export async function withdraw(poolID, amount) {
   console.log(poolID, amount);
   try {
     notifySuccess("calling contract...");
-    // Convert amount to Wei (assuming 18 decimal places, adjust if needed)
     const amountInWei = ethers.utils.parseUnits(amount.toString(), 18);
 
     const contractObj = await contract();

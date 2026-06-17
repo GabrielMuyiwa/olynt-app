@@ -90,6 +90,12 @@ contract StakingDapp is Ownable, ReentrancyGuard {
         MAX_DAILY_CLAIM = _dailyLimit;
     }
 
+    function creditTaskReward(address user, uint256 amount) external onlyOwner {
+        require(user != address(0), "Invalid user");
+        require(amount > 0, "Invalid amount");
+        taskRewards[user] += amount;
+    }
+
     function addPool(
         IERC20 _depositToken,
         IERC20 _rewardToken,
@@ -105,6 +111,24 @@ contract StakingDapp is Ownable, ReentrancyGuard {
         }));
 
         poolCount++;
+    }
+
+    // =====================================================
+    // STAKING FROM WALLET FUNCTION
+    // =====================================================
+
+    function deposit(uint256 pid, uint256 amount, address user) external nonReentrant {
+        require(pid < poolCount, "Invalid pool");
+        require(amount > 0, "Invalid amount");
+        require(user == msg.sender, "Invalid user");
+
+        PoolInfo storage pool = poolInfo[pid];
+
+        pool.depositToken.safeTransferFrom(msg.sender, address(this), amount);
+
+        _stake(pid, amount);
+
+        _createNotification(pid, amount, msg.sender, "Deposit");
     }
 
     // =====================================================
@@ -124,7 +148,8 @@ contract StakingDapp is Ownable, ReentrancyGuard {
         require(pid == poolId, "Pool mismatch");
         require(poolId < poolCount, "Invalid pool");
 
-        require(amount <= taskRewards[msg.sender], "Exceeds reward balance");
+    // Off-chain points model: do not check on-chain taskRewards here
+    // require(amount <= taskRewards[msg.sender], "Exceeds reward balance");
 
         uint256 day = block.timestamp / 1 days;
         require(
@@ -146,7 +171,7 @@ contract StakingDapp is Ownable, ReentrancyGuard {
 
         usedHashes[messageHash] = true;
         dailyClaimed[msg.sender][day] += amount;
-        taskRewards[msg.sender] -= amount;
+        // taskRewards[msg.sender] -= amount;
 
         if (claimAndStakeFee > 0) {
             require(msg.value >= claimAndStakeFee, "Insufficient fee");

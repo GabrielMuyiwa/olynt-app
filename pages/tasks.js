@@ -51,10 +51,17 @@ export default function TasksPage() {
   }, [address]);
 
   const getBalance = async () => {
-    if (!address) return;
-    const res = await fetch(`/api/tasks?wallet=${address}`);
-    const data = await res.json();
-    setEarnings(data.taskBalance || 0);
+    if (!address) return 0;
+    try {
+      const res = await fetch(`/api/tasks?wallet=${address}`);
+      const data = await res.json();
+      const bal = Number(data.taskBalance || 0);
+      setEarnings(bal);
+      return bal;
+    } catch (err) {
+      console.error(err);
+      return 0;
+    }
   };
 
   useEffect(() => {
@@ -76,17 +83,12 @@ export default function TasksPage() {
         setCanClaim(false);
         setClaiming(false);
 
-        if (parsed.task.type === "Click") {
-          setIsTaskOpen(true);
-        }
-
-        if (parsed.task.type === "Watch") {
-          setWatchTaskOpen(true);
-        }
+        if (parsed.task.type === "Click") setIsTaskOpen(true);
+        if (parsed.task.type === "Watch") setWatchTaskOpen(true);
       } else {
         clearSession();
       }
-    } catch (e) {
+    } catch {
       clearSession();
     }
   }, []);
@@ -153,13 +155,7 @@ export default function TasksPage() {
   }, [address]);
 
   const saveSession = (task, endTime) => {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        task,
-        endTime,
-      })
-    );
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ task, endTime }));
   };
 
   const clearSession = () => {
@@ -168,7 +164,6 @@ export default function TasksPage() {
 
   const openTaskUrl = () => {
     if (!activeTask) return;
-
     if (activeTask.type === "Click") {
       const monetagLink = activeTask.url || "https://omg10.com/4/11023405";
       window.open(monetagLink, "_blank");
@@ -198,8 +193,8 @@ export default function TasksPage() {
     if (!address) return alert("Connect wallet");
     if (completed[task.id]) return;
 
-    if (task.type === "Click") {
-      await fetch("/api/tasks", {
+    try {
+      const res = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -209,60 +204,65 @@ export default function TasksPage() {
         }),
       });
 
-      const endTime = Date.now() + (task.duration || 0) * 1000;
-
-      setActiveTask(task);
-      setIsTaskOpen(true);
-      setTimeLeft(task.duration || 0);
-      setCanClaim(false);
-      setClaiming(false);
-      saveSession(task, endTime);
-      return;
-    }
-
-    if (task.type === "Watch") {
-      await fetch("/api/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "start",
-          wallet: address,
-          taskId: task.id,
-        }),
-      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        alert(data.error || "Could not start task");
+        return;
+      }
 
       const endTime = Date.now() + (task.duration || 0) * 1000;
 
-      setActiveTask(task);
-      setWatchTaskOpen(true);
-      setTimeLeft(task.duration || 0);
-      saveSession(task, endTime);
-      return;
+      if (task.type === "Click") {
+        setActiveTask(task);
+        setIsTaskOpen(true);
+        setTimeLeft(task.duration || 0);
+        setCanClaim(false);
+        setClaiming(false);
+        saveSession(task, endTime);
+        return;
+      }
+
+      if (task.type === "Watch") {
+        setActiveTask(task);
+        setWatchTaskOpen(true);
+        setTimeLeft(task.duration || 0);
+        saveSession(task, endTime);
+        return;
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Could not start task");
     }
   };
 
   const verifyTask = async (task) => {
-    const res = await fetch("/api/tasks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "verify",
-        wallet: address,
-        taskId: task.id,
-      }),
-    });
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "verify",
+          wallet: address,
+          taskId: task.id,
+        }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (data.reward) {
-      alert(`You earned $${data.reward}`);
-      setCompleted((prev) => ({ ...prev, [task.id]: true }));
-      getBalance();
-      return true;
+      if (data.reward !== undefined) {
+        alert(`You earned ${data.reward} OLYNT`);
+        setCompleted((prev) => ({ ...prev, [task.id]: true }));
+        await getBalance();
+        return true;
+      }
+
+      alert(data.error || "Task could not be verified");
+      return false;
+    } catch (err) {
+      console.error(err);
+      alert("Task verification failed");
+      return false;
     }
-
-    alert(data.error || "Task could not be verified");
-    return false;
   };
 
   const claimCurrentTask = async () => {
@@ -280,34 +280,46 @@ export default function TasksPage() {
 
   const claimAndStakeRewards = async () => {
     if (!address) return alert("Connect wallet");
-    if (earnings <= 0) return alert("No rewards");
-    if (!selectedPoolId && selectedPoolId !== 0) return alert("Select a pool");
+    if (claiming) return;
 
     try {
+      setClaiming(true);
+
+      const freshBalance = await getBalance();
+      const amountToUse = Number(freshBalance);
+
+      if (amountToUse <= 0) {
+        setEarnings(0);
+        alert("No rewards");
+        return;
+      }
+
+      if (selectedPoolId === null || selectedPoolId === undefined) {
+        return alert("Select a pool");
+      }
+
       const res = await fetch("/api/claim-and-stake", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           wallet: address,
           poolId: selectedPoolId,
-          amount: earnings,
+          amount: amountToUse,
         }),
       });
 
       const data = await res.json();
-      if (!data.success) return alert(data.error);
+      if (!data.success) {
+        alert(data.error || "Server error");
+        return;
+      }
 
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       await provider.send("eth_requestAccounts", []);
       const signer = provider.getSigner();
 
-      const contract = new ethers.Contract(
-        CONTRACT_ADDRESS,
-        stakingAbi.abi,
-        signer
-      );
-
-      const amountWei = ethers.utils.parseUnits(data.amount.toString(), 18);
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, stakingAbi.abi, signer);
+      const amountWei = ethers.BigNumber.from(data.amount);
 
       const tx = await contract.claimAndStake(
         data.pid,
@@ -323,14 +335,29 @@ export default function TasksPage() {
 
       await tx.wait();
 
+      // Tell backend to subtract off-chain task balance
+      await fetch("/api/confirm-claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wallet: address,
+          amount: amountToUse,
+        }),
+      });
+
+      //const updatedBalance = Number(data.newTaskBalance ?? 0);
+      //setEarnings(updatedBalance);
+      await new Promise((r) => setTimeout(r, 500));
+      await getBalance();
+      
       alert("✅ Claimed & Staked successfully!");
-      setEarnings(0);
-      getBalance();
     } catch (err) {
       console.error(err);
-      alert("❌ Claim & Stake failed");
-    }
-  };
+      alert(err?.response?.data?.error || err?.message || "❌ Claim & Stake failed");
+      } finally {
+        setClaiming(false);
+        }
+      };
 
   const withdrawRewards = async () => {
     if (!address) return alert("Connect wallet");
@@ -340,11 +367,7 @@ export default function TasksPage() {
       await provider.send("eth_requestAccounts", []);
       const signer = provider.getSigner();
 
-      const contract = new ethers.Contract(
-        CONTRACT_ADDRESS,
-        stakingAbi.abi,
-        signer
-      );
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, stakingAbi.abi, signer);
 
       const tx = await contract.withdrawTaskReward(0);
       await tx.wait();
@@ -375,11 +398,7 @@ export default function TasksPage() {
       await provider.send("eth_requestAccounts", []);
       const signer = provider.getSigner();
 
-      const contract = new ethers.Contract(
-        CONTRACT_ADDRESS,
-        stakingAbi.abi,
-        signer
-      );
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, stakingAbi.abi, signer);
 
       const amountWei = ethers.utils.parseUnits(amount.toString(), 18);
       const tx = await contract.claimTaskReward(amountWei, signature);
@@ -408,7 +427,7 @@ export default function TasksPage() {
       <AdsterraBanner />
 
       <h1>Task Center</h1>
-      <p>Total Earned: ${earnings.toFixed(2)}</p>
+      <p>Total Earned: {earnings.toFixed(2)} OLYNT</p>
 
       <div style={{ display: "flex", gap: "10px", marginBottom: 20, flexWrap: "wrap" }}>
         {tabs.map((tab) => (
@@ -439,7 +458,7 @@ export default function TasksPage() {
           }}
         >
           <h3>{task.title}</h3>
-          <p>Reward: ${task.reward}</p>
+          <p>Reward: {task.reward} OLYNT</p>
 
           <button
             onClick={() => startTask(task)}
@@ -492,15 +511,17 @@ export default function TasksPage() {
 
         <button
           onClick={claimAndStakeRewards}
+          disabled={claiming}
           style={{
             padding: "12px",
-            background: "#00b894",
+            background: claiming ? "gray" : "#00b894",
             color: "#fff",
             border: "none",
             fontWeight: "bold",
+            cursor: claiming ? "not-allowed" : "pointer",
           }}
         >
-          Claim & Stake Rewards
+          {claiming ? "Processing..." : "Claim & Stake Rewards"}
         </button>
 
         <div
@@ -511,7 +532,7 @@ export default function TasksPage() {
             borderRadius: "12px",
           }}
         >
-          <h2 style={{ color: "#fff" }}>🏆 Leaderboard</h2>
+          <h2 style={{ color: "#fff" }}>Leaderboard</h2>
 
           {leaderboard.map((user, index) => (
             <div

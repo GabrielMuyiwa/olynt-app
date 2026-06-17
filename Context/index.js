@@ -160,13 +160,19 @@ export async function deposit(poolID, amount, address) {
     }
     const gasEstimation = await contractObj.estimateGas.deposit(
       Number(poolID),
-      amountInWei
+      amountInWei,
+      address
     );
 
     notifySuccess("Staking token..");
-    const stakeTx = await contractObj.deposit(poolID, amountInWei, {
-      gasLimit: gasEstimation,
-    });
+    const stakeTx = await contractObj.deposit(
+      Number(poolID),
+      amountInWei,
+      address,
+      {
+        gasLimit: gasEstimation,
+      }
+    );
     console.log(stakeTx);
 
     const receipt = await stakeTx.wait();

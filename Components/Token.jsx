@@ -22,8 +22,9 @@ const Token = ({ poolDetails }) => {
                     <div className="invest__rate">
                       <span>Stake Supply</span>
                       <p>
-                        {poolDetails?.depositToken.totalSupply}{" "}
-                        {poolDetails?.depositToken.symbol}
+                        {poolDetails?.depositToken
+                          ? `${poolDetails.depositToken.totalSupply} ${poolDetails.depositToken.symbol}`
+                          : "Loading..."}
                       </p>
                     </div>
                     <div className="invest__graph">

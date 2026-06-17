@@ -1,8 +1,18 @@
 import db from "./firebaseAdmin";
+import { ethers } from "ethers";
+import stakingAbi from "../../Context/StakingDapp.json";
 
 const DAILY_LIMIT = 10;
 const COOLDOWN = 30;
 const MAX_TASKS_PER_DAY = 20;
+
+const provider = new ethers.providers.JsonRpcProvider(process.env.RPC_URL);
+const adminWallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+const stakingContract = new ethers.Contract(
+  process.env.NEXT_PUBLIC_STAKING_DAPP,
+  stakingAbi.abi,
+  adminWallet
+);
 
 export default async function handler(req, res) {
   const { method } = req;
@@ -171,9 +181,7 @@ export default async function handler(req, res) {
           if (userData.referrer) {
             const refRef = db.collection("users").doc(userData.referrer);
             const refSnap = await tx.get(refRef);
-
             const refData = refSnap.exists ? refSnap.data() : {};
-
             const referralReward = task.reward * 0.1;
 
             tx.set(
@@ -192,6 +200,9 @@ export default async function handler(req, res) {
             reward: task.reward,
           };
         });
+
+        //const rewardWei = ethers.utils.parseUnits(result.reward.toString(), 18);
+        //await stakingContract.creditTaskReward(wallet, rewardWei);
 
         return res.json(result);
       }

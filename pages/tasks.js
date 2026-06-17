@@ -190,8 +190,22 @@ export default function TasksPage() {
   };
 
   const startTask = async (task) => {
-    if (!address) return alert("Connect wallet");
-    if (completed[task.id]) return;
+    // 1) Guard: wallet must be connected
+    if (!address) {
+      alert("Connect wallet");
+      return;
+    }
+
+    // 2) Guard: task and task.id must exist
+    if (!task || !task.id) {
+      alert("Task id is missing");
+      return;
+    }
+
+    // 3) Guard: already completed
+    if (completed[task.id]) {
+      return;
+    }
 
     try {
       const res = await fetch("/api/tasks", {
@@ -205,6 +219,7 @@ export default function TasksPage() {
       });
 
       const data = await res.json();
+
       if (!res.ok || !data.success) {
         alert(data.error || "Could not start task");
         return;
@@ -229,6 +244,17 @@ export default function TasksPage() {
         saveSession(task, endTime);
         return;
       }
+
+      // NEW: for Offers and Surveys, start + open the ShrinkMe URL
+      if ((task.type === "Offers" || task.type === "Surveys") && task.url) {
+        alert(`Task "${task.title}" started. Complete the offer, then submit to claim.`);
+        window.open(task.url, "_blank", "noopener"); // open ShrinkMe link
+        return;
+      }
+
+      // For other types (Offers, Surveys) we don't open a modal,
+      // but backend has now started the task.
+      alert(`Task "${task.title}" started. Complete the offer, then submit to claim.`);
     } catch (err) {
       console.error(err);
       alert("Could not start task");
@@ -236,6 +262,18 @@ export default function TasksPage() {
   };
 
   const verifyTask = async (task) => {
+    // 1) Guard: wallet must be connected
+    if (!address) {
+      alert("Connect wallet");
+      return false;
+    }
+
+    // 2) Guard: task and task.id must exist
+    if (!task || !task.id) {
+      alert("Task id is missing");
+      return false;
+    }
+
     try {
       const res = await fetch("/api/tasks", {
         method: "POST",
@@ -460,6 +498,30 @@ export default function TasksPage() {
           <h3>{task.title}</h3>
           <p>Reward: {task.reward} OLYNT</p>
 
+          {(task.type === "Offers" || task.type === "Surveys") && (
+            <div
+              style={{
+                marginTop: "10px",
+                marginBottom: "12px",
+                padding: "10px",
+                background: "#1f1b35",
+                border: "1px solid #333",
+                borderRadius: "8px",
+                fontSize: "14px",
+                lineHeight: "1.6",
+                color: "#ddd",
+              }}
+            >
+              <strong>How to complete:</strong>
+              <ol style={{ margin: "8px 0 0 18px", padding: 0 }}>
+                <li>Click <strong>Start Task</strong>.</li>
+                <li>Open the task link and stay on it for at least 30–60 seconds.</li>
+                <li>Make sure JavaScript and cookies are enabled.</li>
+                <li>Return here and click <strong>Submit</strong> to claim reward.</li>
+              </ol>
+            </div>
+          )}
+
           <button
             onClick={() => startTask(task)}
             disabled={completed[task.id]}
@@ -473,6 +535,22 @@ export default function TasksPage() {
           >
             {completed[task.id] ? "Completed" : "Start Task"}
           </button>
+
+          {!completed[task.id] && (task.type === "Offers" || task.type === "Surveys") && (
+            <button
+              onClick={() => verifyTask(task)}
+              style={{
+                padding: "8px",
+                marginLeft: "8px",
+                background: "#00b894",
+                color: "#fff",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              Submit
+            </button>
+          )}
         </div>
       ))}
 

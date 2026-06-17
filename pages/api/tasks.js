@@ -70,8 +70,16 @@ export default async function handler(req, res) {
     if (method === "POST") {
       const { action, wallet, taskId, referrer } = req.body;
 
-      if (!wallet || !taskId) {
-        return res.status(400).json({ error: "Missing params" });
+      if (!wallet) {
+        return res.status(400).json({ error: "Missing wallet" });
+      }
+
+      if (!taskId) {
+        return res.status(400).json({ error: "Missing taskId" });
+      }
+
+      if (!action) {
+        return res.status(400).json({ error: "Missing action" });
       }
 
       const taskRef = db.collection("tasks").doc(taskId);

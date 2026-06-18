@@ -34,6 +34,7 @@ export default function AdminDashboard() {
     duration: "",
     type: "Watch",
     url: "",
+    destinationUrl: "",
     questions: DEFAULT_QUESTIONS,
   });
 
@@ -150,7 +151,13 @@ export default function AdminDashboard() {
         "x-admin-wallet": address.toLowerCase(),
       },
       body: JSON.stringify({
-        ...form,
+        id: form.id,
+        title: form.title,
+        reward: Number(form.reward),
+        type: form.type,
+        duration: Number(form.duration || 0),
+        url: form.url,
+        destinationUrl: form.destinationUrl,
         questions: form.type === "Watch" ? parsedQuestions : [],
       }),
     });
@@ -166,6 +173,7 @@ export default function AdminDashboard() {
         duration: "",
         type: "Watch",
         url: "",
+        destinationUrl: "",
         questions: DEFAULT_QUESTIONS,
       });
       loadTasks();
@@ -328,6 +336,12 @@ export default function AdminDashboard() {
           onChange={(e) => setForm({ ...form, url: e.target.value })}
           style={inputStyle}
         />
+        <input
+          placeholder="Destination URL (final page)"
+          value={form.destinationUrl}
+          onChange={(e) => setForm({ ...form, destinationUrl: e.target.value })}
+          style={inputStyle}
+        />
 
         {form.type === "Watch" && (
           <>
@@ -386,6 +400,24 @@ export default function AdminDashboard() {
             <p>Duration: {task.duration}s</p>
             <p>Type: {task.type}</p>
             <p>Status: {task.active ? "🟢 Active" : "🔴 Disabled"}</p>
+
+            {task.url && (
+              <p>
+                URL:{" "}
+                 <a href={task.url} target="_blank" rel="noreferrer">
+                  Open
+                 </a>
+              </p>
+            )}
+
+            {task.destinationUrl && (
+              <p>
+                Destination:{" "}
+                <a href={task.destinationUrl} target="_blank" rel="noreferrer">
+                  Open
+                </a>
+              </p>
+            )}
 
             {task.questions?.length > 0 && (
               <p>Quiz Questions: {task.questions.length}</p>

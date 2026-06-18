@@ -25,6 +25,7 @@ export default function AdminTasks() {
     type: "Watch",
     duration: "",
     url: "",
+    destinationUrl: "",
     questions: DEFAULT_QUESTIONS,
   });
 
@@ -82,6 +83,7 @@ export default function AdminTasks() {
         type: form.type,
         duration: Number(form.duration || 0),
         url: form.url,
+        destinationUrl: form.destinationUrl,
         questions: form.type === "Watch" ? parsedQuestions : [],
       }),
     });
@@ -99,6 +101,7 @@ export default function AdminTasks() {
       type: "Watch",
       duration: "",
       url: "",
+      destinationUrl: "",
       questions: DEFAULT_QUESTIONS,
     });
 
@@ -231,6 +234,15 @@ export default function AdminTasks() {
               <p>
                 URL:{" "}
                 <a href={task.url} target="_blank" rel="noreferrer">
+                  Open
+                </a>
+              </p>
+            )}
+
+            {task.destinationUrl && (
+              <p>
+                Destination:{" "}
+                <a href={task.destinationUrl} target="_blank" rel="noreferrer">
                   Open
                 </a>
               </p>

@@ -33,6 +33,7 @@ export default async function handler(req, res) {
       duration,
       type,
       url,
+      destinationUrl,
       questions,
     } = req.body;
 
@@ -53,6 +54,7 @@ export default async function handler(req, res) {
       duration: Number(duration || 0),
       type: type || "Watch",
       url: url || "",
+      destinationUrl: destinationUrl || "",
       questions: Array.isArray(questions) ? questions : [],
       active: true,
       createdAt: Date.now(),

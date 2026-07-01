@@ -17,7 +17,7 @@ import {
 import { chain, configureChains, createClient, WagmiConfig } from "wagmi";
 import { jsonRpcProvider } from "wagmi/providers/jsonRpc";
 
-const AMOY = process.env.NEXT_PUBLIC_AMOY_RPC_URL;
+const BASE_SEPOLIA = process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL;
 const EXPLORER = process.env.NEXT_PUBLIC_EXPLORER;
 
 const CHAIN_ID = process.env.NEXT_PUBLIC_CHAIN_ID;
@@ -40,15 +40,15 @@ export default function App({ Component, pageProps }) {
         },
         rpcUrls: {
           default: {
-            http: [`${AMOY}`],
+            http: [`${BASE_SEPOLIA}`],
           },
           public: {
-            http: [`${AMOY}`],
+            http: [`${BASE_SEPOLIA}`],
           },
         },
         blockExplorers: {
           default: {
-            name: "Amoy Explorer",
+            name: "Base Sepolia Explorer",
             url: EXPLORER,
           },
         },
@@ -59,7 +59,7 @@ export default function App({ Component, pageProps }) {
       jsonRpcProvider({
         rpc: (chain) => {
           if (chain.id === Number(CHAIN_ID)) {
-            return { http: `${AMOY}` };
+            return { http: `${BASE_SEPOLIA}` };
           }
           return null;
         },

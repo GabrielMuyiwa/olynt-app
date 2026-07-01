@@ -113,7 +113,7 @@ export default async function handler(req, res) {
       nonce,
       deadline,
       signature,
-      fee: "0.002",
+      fee: "0.000005",
       newTaskBalance: currentTaskBalance,
       referralBalance: currentReferralBalance,
     });

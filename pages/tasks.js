@@ -34,6 +34,8 @@ export default function TasksPage() {
   const [canClaim, setCanClaim] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [watchTaskOpen, setWatchTaskOpen] = useState(false);
+  const [startingTaskId, setStartingTaskId] = useState(null);
+  const [verifyingTaskId, setVerifyingTaskId] = useState(null);
   const timerRef = useRef(null);
 
   const loadTasks = async () => {
@@ -207,7 +209,11 @@ export default function TasksPage() {
       return;
     }
 
+    if (startingTaskId) return;
+
     try {
+      setStartingTaskId(task.id);
+
       const res = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -258,6 +264,8 @@ export default function TasksPage() {
     } catch (err) {
       console.error(err);
       alert("Could not start task");
+    } finally {
+      setStartingTaskId(null);
     }
   };
 
@@ -275,6 +283,8 @@ export default function TasksPage() {
     }
 
     try {
+      setVerifyingTaskId(task.id);
+
       const res = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -300,6 +310,8 @@ export default function TasksPage() {
       console.error(err);
       alert("Task verification failed");
       return false;
+    } finally {
+      setVerifyingTaskId(null);
     }
   };
 
@@ -524,31 +536,40 @@ export default function TasksPage() {
 
           <button
             onClick={() => startTask(task)}
-            disabled={completed[task.id]}
+            disabled={completed[task.id] || startingTaskId === task.id}
             style={{
               padding: "8px",
-              background: completed[task.id] ? "gray" : "#0984e3",
+              background: completed[task.id]
+                ? "gray"
+                : startingTaskId === task.id
+                ? "#6c5ce7"
+                : "#0984e3",
               color: "#fff",
               border: "none",
-              cursor: "pointer",
+              cursor: completed[task.id] || startingTaskId === task.id ? "not-allowed" : "pointer",
             }}
           >
-            {completed[task.id] ? "Completed" : "Start Task"}
+            {completed[task.id] 
+              ? "Completed" 
+              : startingTaskId === task.id
+              ? "Starting..."
+              : "Start Task"}
           </button>
 
           {!completed[task.id] && (task.type === "Offers" || task.type === "Surveys") && (
             <button
               onClick={() => verifyTask(task)}
+              disabled={verifyingTaskId === task.id}
               style={{
                 padding: "8px",
                 marginLeft: "8px",
-                background: "#00b894",
+                background: verifyingTaskId === task.id ? "#555" : "#00b894",
                 color: "#fff",
                 border: "none",
-                cursor: "pointer",
+                cursor: verifyingTaskId === task.id ? "not-allowed" : "pointer",
               }}
             >
-              Submit
+              {verifyingTaskId === task.id ? "Submitting..." : "Submit"}
             </button>
           )}
         </div>

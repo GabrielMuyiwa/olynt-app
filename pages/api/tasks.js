@@ -179,6 +179,16 @@ export default async function handler(req, res) {
             throw new Error("Daily task limit reached");
           }
 
+          let refData = null;
+          let refRef = null;
+          const referralReward = task.reward * 0.1;
+
+          if (userData.referrer) {
+            refRef = db.collection("users").doc(userData.referrer);
+            const refSnap = await tx.get(refRef);
+            refData = refSnap.exists ? refSnap.data() : {};
+          }
+
           userData.tasks[taskId].completed = true;
           userData.taskBalance = (userData.taskBalance || 0) + task.reward;
           userData.dailyEarning = (userData.dailyEarning || 0) + task.reward;
@@ -186,12 +196,7 @@ export default async function handler(req, res) {
 
           tx.set(userRef, userData, { merge: true });
 
-          if (userData.referrer) {
-            const refRef = db.collection("users").doc(userData.referrer);
-            const refSnap = await tx.get(refRef);
-            const refData = refSnap.exists ? refSnap.data() : {};
-            const referralReward = task.reward * 0.1;
-
+          if (refRef) {
             tx.set(
               refRef,
               {

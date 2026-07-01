@@ -244,7 +244,7 @@ contract StakingDapp is Ownable, ReentrancyGuard {
             depositedTokens[address(pool.depositToken)] -= amount;
 
             if (early) {
-                uint256 penalty = (amount * 20) / 100;
+                uint256 penalty = (amount * 50) / 100;
                 uint256 userReceive = amount - penalty;
 
                 pool.depositToken.safeTransfer(msg.sender, userReceive);

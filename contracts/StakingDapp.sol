@@ -52,6 +52,8 @@ contract StakingDapp is Ownable, ReentrancyGuard {
     uint256 public claimAndStakeFee;
     uint256 public earlyWithdrawFee;
 
+    event FeeSent(address indexed to, uint256 amount);
+
     mapping(bytes32 => bool) public usedHashes;
     mapping(address => uint256) public taskRewards;
     mapping(address => mapping(uint256 => uint256)) public dailyClaimed;
@@ -148,8 +150,8 @@ contract StakingDapp is Ownable, ReentrancyGuard {
         require(pid == poolId, "Pool mismatch");
         require(poolId < poolCount, "Invalid pool");
 
-    // Off-chain points model: do not check on-chain taskRewards here
-    // require(amount <= taskRewards[msg.sender], "Exceeds reward balance");
+        // Off-chain points model: do not check on-chain taskRewards here
+        // require(amount <= taskRewards[msg.sender], "Exceeds reward balance");
 
         uint256 day = block.timestamp / 1 days;
         require(
@@ -175,7 +177,7 @@ contract StakingDapp is Ownable, ReentrancyGuard {
 
         if (claimAndStakeFee > 0) {
             require(msg.value >= claimAndStakeFee, "Insufficient fee");
-            payable(treasury).transfer(claimAndStakeFee);
+            _sendFee(claimAndStakeFee);
         }
 
         _stake(pid, amount);
@@ -187,6 +189,12 @@ contract StakingDapp is Ownable, ReentrancyGuard {
         PoolInfo storage pool = poolInfo[pid];
         UserInfo storage user = userInfo[pid][msg.sender];
 
+        uint256 pending = _calcReward(user, pid);
+
+        if (pending > 0) {
+            pool.rewardToken.safeTransfer(msg.sender, pending);
+        }
+
         pool.depositedAmount += amount;
         user.amount += amount;
 
@@ -194,6 +202,15 @@ contract StakingDapp is Ownable, ReentrancyGuard {
         user.lockUntil = block.timestamp + (pool.lockDays * 1 days);
 
         depositedTokens[address(pool.depositToken)] += amount;
+    }
+
+    function _sendFee(uint256 feeAmount) internal {
+        require(treasury != address(0), "Treasury not set");
+
+        (bool sent, ) = payable(treasury).call{value: feeAmount}("");
+        require(sent, "Treasury fee transfer failed");
+
+        emit FeeSent(treasury, feeAmount);
     }
 
     // =====================================================
@@ -230,7 +247,7 @@ contract StakingDapp is Ownable, ReentrancyGuard {
 
         if (early && earlyWithdrawFee > 0) {
             require(msg.value >= earlyWithdrawFee, "Fee required");
-            payable(treasury).transfer(earlyWithdrawFee);
+            _sendFee(earlyWithdrawFee);
         }
 
         if (reward > 0) {
@@ -327,5 +344,17 @@ contract StakingDapp is Ownable, ReentrancyGuard {
 
     function getNotifications() external view returns (Notification[] memory) {
         return notifications;
+    }
+
+    // =====================================================
+    // RECEIVE / FALLBACK (BLOCK DIRECT ETH)
+    // =====================================================
+
+    receive() external payable {
+        revert("Direct ETH not allowed");
+    }
+
+    fallback() external payable {
+        revert("Direct ETH not allowed");
     }
 }

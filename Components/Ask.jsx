@@ -9,7 +9,7 @@ const Ask = ({ setContactUs }) => {
             <div className="question">
               <h2 className="question__title">Any questions?</h2>
               <p className="question__text">
-                Our support team is always on call, and ready to help with all
+                Our support team is always available, and ready to help with all
                 your questions!
               </p>
               <div className="section__btns section__btns--mt">

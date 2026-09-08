@@ -131,7 +131,7 @@ const Activity = () => {
       alert("Please connect your wallet!");
       return;
     }
-    const referralLink = `https://www.grainfi.xyz?ref=${address}`;
+    const referralLink = `https://www.olynt.online/?ref=${address}`;
     navigator.clipboard
       .writeText(referralLink)
       .then(() => alert("Referral link copied to clipboard!"))
@@ -146,19 +146,52 @@ const Activity = () => {
       {/* Display the user's referral points */}
       <div style={{ padding: "20px", textAlign: "center" }}>
         {userData ? (
-          <h2>Your Referral Points: {userData.points}</h2>
+          <h2
+            style={{
+              color: "#fff",
+              fontWeight: "700",
+              fontSize: "28px",
+            }}
+          >
+            Your Referral Points: {userData.points}
+          </h2>
         ) : (
-          <h2>Loading your referral points...</h2>
+          <h2
+            style={{
+              color: "#fff",
+              fontWeight: "700",
+              fontSize: "28px",
+            }}
+          >
+            Loading your referral points...
+          </h2>
         )}
       </div>
       
       <Statistics poolDetails={poolDetails} />
       <Notification poolDetails={poolDetails} page={"activity"} />
 
-      <div style={{ padding: "20px" }}>
+      <div style={{ padding: "20px", textAlign: "center" }}>
         <button
           onClick={generateReferralLink}
-          style={{ padding: "10px 20px", fontSize: "16px" }}
+          style={{
+            backgroundColor: "#0b1f3a", // Dark navy blue
+            color: "#ffffff",
+            border: "none",
+            borderRadius: "8px",
+            padding: "12px 24px",
+            fontSize: "16px",
+            fontWeight: "600",
+            cursor: "pointer",
+            transition: "0.3s ease",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+          }}
+          onMouseOver={(e) => {
+            e.target.style.backgroundColor = "#14345e";
+          }}
+          onMouseOut={(e) => {
+            e.target.style.backgroundColor = "#0b1f3a";
+          }}
         >
           Generate Referral Link
         </button>

@@ -21,6 +21,8 @@ async function main() {
   const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
   const wallet = new ethers.Wallet(PRIVATE_KEY, provider);
 
+  console.log("Using RPC_URL:", RPC_URL);
+  
   const contract = new ethers.Contract(
     CONTRACT_ADDRESS,
     stakingAbi.abi,
@@ -29,9 +31,9 @@ async function main() {
 
   console.log("🌉 Setting signer:", wallet.address);
 
-  // 🔧 FIX: Custom gas for Base Sepolia (25+ Gwei required)
+  // 🔧 FIX: Custom gas for Base (25+ Gwei required)
   const tx = await contract.setSigner(wallet.address, {
-    // you can still set gasPrice manually, but Base Sepolia usually works with default:
+    // you can still set gasPrice manually, but Base usually works with default:
     //gasPrice: ethers.utils.parseUnits("30", "gwei"),  // 30 Gwei (safe high)
     gasLimit: 200000  // Conservative limit
   });
@@ -40,7 +42,7 @@ async function main() {
 
   console.log("✅ Signer set successfully!");
   console.log("🔗 Tx Hash:", tx.hash);
-  console.log("🔗 Explorer:", `https://sepolia.basescan.org/tx/${tx.hash}`);
+  console.log("🔗 Explorer:", `https://basescan.org/tx/${tx.hash}`);
 }
 
 main().catch((error) => {

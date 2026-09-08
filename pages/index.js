@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useAccount } from "wagmi";
+import Link from "next/link";
 import AdsterraBanner from "../Components/AdsterraBanner";
 import {
   Header,
@@ -121,6 +122,21 @@ const index = () => {
             Referral System
           </button>
         </a>
+
+        <Link
+          href="/market"
+          style={{
+            display: "inline-block",
+            padding: "12px 18px",
+            borderRadius: "12px",
+            background: "#2563eb",
+            color: "#fff",
+            textDecoration: "none",
+            fontWeight: 700,
+          }}
+        >
+          OLYNT Market
+        </Link>
       </div>
 
       <AdsterraBanner />

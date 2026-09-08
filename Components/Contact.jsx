@@ -36,7 +36,7 @@ const Contact = ({ setContactUs }) => {
             </button>
             <h4 className="modal__title">Ask a question</h4>
             <p className="modal__text">
-              Our support team is always on call, and ready to help with all
+              Our support team is always available, and ready to help with all
               your questions!
             </p>
             <form onSubmit={handleSubmit} className="modal__form">

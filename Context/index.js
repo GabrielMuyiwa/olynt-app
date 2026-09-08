@@ -100,7 +100,7 @@ export async function CONTRACT_DATA(address) {
           lockUntil: CONVERT_TIMESTAMP_TO_READABLE(
             userInfo.lockUntil.toNumber()
           ),
-          lastRewardAt: toEth(userInfo.lastRewardAt.toString()),
+          lastRewardAt: CONVERT_TIMESTAMP_TO_READABLE(userInfo.lastRewardAt.toNumber()),
         };
 
         poolInfoArray.push(pool);
@@ -208,23 +208,77 @@ export async function transferToken(amount, transferAddress) {
   }
 }
 
-export async function withdraw(poolID, amount) {
+export async function withdraw(poolID, amount, overrides = {}) {
+  try {
+    notifySuccess("calling contract...");
+    const amountInWei = ethers.utils.parseUnits(amount.toString(), 18);
+    const contractObj = await contract();
+
+    await contractObj.callStatic.withdraw(Number(poolID), amountInWei, {
+      ...overrides,
+    });
+
+    const tx = await contractObj.withdraw(Number(poolID), amountInWei, {
+      ...overrides,
+      gasLimit: 500000,
+    });
+
+    const receipt = await tx.wait();
+    notifySuccess("transaction successfully completed");
+    return receipt;
+  } catch (e) {
+    console.log("WITHDRAW ERROR:", e);
+    console.log("REASON:", e.reason || e.error?.message || e.message);
+    throw e;
+  }
+}
+
+export async function claimReward(poolID) {
+  try {
+    notifySuccess("calling contract...");
+    const contractObj = await contract();
+
+    await contractObj.callStatic.claimReward(Number(poolID));
+
+    const tx = await contractObj.claimReward(Number(poolID), {
+      gasLimit: 500000,
+    });
+
+    const receipt = await tx.wait();
+    notifySuccess("transaction successfully completed");
+    return receipt;
+  } catch (e) {
+    console.log("CLAIM ERROR:", e);
+    console.log("REASON:", e.reason || e.error?.message || e.message);
+    throw e;
+  }
+}
+
+/*
+export async function withdraw(poolID, amount, overrides = {}) {
   console.log(poolID, amount);
   try {
     notifySuccess("calling contract...");
     const amountInWei = ethers.utils.parseUnits(amount.toString(), 18);
-
     const contractObj = await contract();
 
     const gasEstimation = await contractObj.estimateGas.withdraw(
       Number(poolID),
-      amountInWei
+      amountInWei,
+      overrides
     );
-    const data = await contractObj.withdraw(Number(poolID), amountInWei, {
+
+    const tx = await contractObj.withdraw(Number(poolID), amountInWei, {
+      ...overrides,
       gasLimit: gasEstimation,
     });
+    
+    //const data = await contractObj.withdraw(Number(poolID), amountInWei, {
+      //gasLimit: gasEstimation,
+    //});
 
-    const receipt = await data.wait();
+    //const receipt = await data.wait();
+    const receipt = await tx.wait();
     notifySuccess("transaction successfully completed");
     return receipt;
   } catch (e) {
@@ -234,6 +288,7 @@ export async function withdraw(poolID, amount) {
     notifyError(errorMsg);
   }
 }
+
 
 export async function claimReward(poolID) {
   try {
@@ -257,11 +312,12 @@ export async function claimReward(poolID) {
     notifyError(errorMsg);
   }
 }
+*/
 
 export async function createPool(pool) {
   try {
     const { _depositToken, _rewardToken, _apy, _lockDays } = pool;
-    if (!_depositToken || !_rewardToken || !_apy || !_lockDays)
+    if (!_depositToken || !_rewardToken || _apy === "" || _lockDays === "")
       return notifyError("Provide all details");
 
     notifySuccess("calling contract...");

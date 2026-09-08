@@ -16,10 +16,10 @@ const Pools = ({
         <div className="row">
           <div className="col-12 col-lg-8 offset-lg-2 col-xl-6 offset-xl-3">
             <div className="section__title">
-              <h2>Planting pools</h2>
+              <h2>Staking pools</h2>
               <p>
-                Join Planting pools and unlock the potential of partnership to
-                maximize returns from cryptocurrency Planing.
+                Choose a staking pool that matches your commitment period
+                and earn rewards for supporting the OLYNT ecosystem.
               </p>
             </div>
           </div>
@@ -167,12 +167,12 @@ const Pools = ({
                       <div className="apool__content">
                         <span className="apool__value">
                           <b>{pool?.depositToken.symbol}&nbsp; &nbsp; </b>:{" "}
-                          {pool?.depositToken.address.slice(0, 15)}
+                          {pool?.depositToken?.address?.slice(0, 15) || ""}
                           ... <FaRegCopy />
                         </span>
                         <span className="apool__value">
                           <b>{pool?.rewardToken.symbol}&nbsp; &nbsp; </b>:{" "}
-                          {pool?.rewardToken.address.slice(0, 15)}
+                          {pool?.rewardToken?.address?.slice(0, 15) || ""}
                           ...
                           <FaRegCopy />
                         </span>

@@ -9,18 +9,17 @@ const Withdraw = ({ setWithdrawPoolID, poolDetails }) => {
         <div className="row">
           <div className="col-12 col-md-8 offset-md-2 col-lg-6 offset-lg-3">
             <div className="section__title">
-              <h2>Planting rewards</h2>
+              <h2>Staking rewards</h2>
               <p>
-                Secure a unique opportunity to engage in cryptocurrency Plating
-                by acquiring Plating rewards on our platform.
+                Stake your tokens with confidence and earn secure,
+                sustainable rewards while contributing to the growth of the OLYNT ecosystem.
               </p>
             </div>
           </div>
         </div>
         <div className="row">
-          {poolArray
-            .map((pool, index) => (
-              <div className="col-12 col-md-6 col-lg-4">
+          {poolArray.slice(0, 3).map((pool, index) => (
+              <div className="col-12 col-md-6 col-lg-4" key={index}>
                 <div className="node">
                   <h3
                     className={`node__title node__title--${
@@ -45,12 +44,12 @@ const Withdraw = ({ setWithdrawPoolID, poolDetails }) => {
                   <ul className="node__list">
                     <li>
                       <b>{pool?.depositToken.symbol}&nbsp; &nbsp; </b>:{" "}
-                      {pool?.depositToken.address.slice(0, 15)}
+                      {pool?.depositToken?.address?.slice(0, 15) || ""}
                       ... <FaRegCopy />
                     </li>
                     <li>
                       <b>{pool?.rewardToken.symbol}&nbsp; &nbsp; </b>:{" "}
-                      {pool?.rewardToken.address.slice(0, 15)}
+                      {pool?.rewardToken?.address?.slice(0, 15) || ""}
                       ...
                       <FaRegCopy />
                     </li>

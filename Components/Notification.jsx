@@ -15,8 +15,8 @@ const Notification = ({ poolDetails, page }) => {
               <div className="section__title">
                 <h2>Active Live</h2>
                 <p>
-                  Real-time planting action, complete with detailed information
-                  about the involved users cryptocurrencies and tokens.
+                  Real-time staking activity, complete with detailed information about users,
+                  staked OLYNT tokens, and earned rewards.
                 </p>
               </div>
             </div>

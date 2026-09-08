@@ -1,5 +1,6 @@
-// pages/api/confirm-claim.js
 import db from "./firebaseAdmin";
+
+const getDayKeyUTC = (ms = Date.now()) => new Date(ms).toISOString().slice(0, 10);
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -7,40 +8,59 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { wallet, amount } = req.body;
-    if (!wallet || amount === undefined || amount === null) {
-      return res.status(400).json({ success: false, error: "Missing data" });
-    }
+    const { wallet } = req.body;
 
-    const claimAmount = Number(amount);
-    if (claimAmount <= 0) {
-      return res.status(400).json({ success: false, error: "Invalid amount" });
+    if (!wallet) {
+      return res.status(400).json({ success: false, error: "Missing wallet" });
     }
 
     const userRef = db.collection("users").doc(wallet);
     const userSnap = await userRef.get();
 
-    let currentTaskBalance = 0;
-    if (userSnap.exists) {
-      const userData = userSnap.data();
-      currentTaskBalance = Number(userData.taskBalance || 0);
+    if (!userSnap.exists) {
+      return res.status(400).json({ success: false, error: "User not found" });
     }
 
-    const newTaskBalance = Math.max(currentTaskBalance - claimAmount, 0);
+    const now = Date.now();
+    const todayKey = getDayKeyUTC(now);
+
+    const userData = userSnap.data();
+    const lastClaimDate = userData.lastClaimDate || null;
+    const lastClaimDayKey = lastClaimDate ? new Date(lastClaimDate).toISOString().slice(0, 10) : null;
+    const isToday = lastClaimDayKey === todayKey;
+    const alreadyClaimedToday = Boolean(userData.dailyClaimed && isToday);
+
+    if (alreadyClaimedToday) {
+      return res.status(400).json({
+        success: false,
+        error: "Already claimed today",
+      });
+    }
+
+    const oldStreak = Number(userData.claimStreak || 0);
+    const newStreak = oldStreak + 1;
 
     await userRef.set(
-      { taskBalance: newTaskBalance },
+      {
+        taskBalance: 0,
+        pendingDailyReward: 0,
+        dailyClaimed: true,
+        lastClaimDate: new Date(now).toISOString(),
+        claimStreak: newStreak,
+      },
       { merge: true }
     );
 
     return res.status(200).json({
       success: true,
-      newTaskBalance,
+      newTaskBalance: 0,
+      claimStreak: newStreak,
     });
   } catch (error) {
     console.error(error);
-    return res
-      .status(500)
-      .json({ success: false, error: error.message || "Server error" });
+    return res.status(500).json({
+      success: false,
+      error: error.message || "Server error",
+    });
   }
 }

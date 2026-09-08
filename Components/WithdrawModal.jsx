@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { ethers } from "ethers";
 
 //INTERNAL IMPORT
 import { IoMdClose } from "./ReactICON";
@@ -12,11 +13,14 @@ const WithdrawModal = ({
   setLoader,
   claimReward,
 }) => {
-  const [amount, setAmount] = useState();
+  const [amount, setAmount] = useState("");
 
-  const CALLING_FUNCTION = async (withdrawPoolID, amount, address) => {
+  const CALLING_FUNCTION = async (withdrawPoolID, amount) => {
     setLoader(true);
-    const receipt = await withdraw(withdrawPoolID, amount, address);
+    const fee = ethers.utils.parseEther("0.000005");
+    const receipt = await withdraw(withdrawPoolID, amount, {
+      value: fee,
+    });
     if (receipt) {
       setLoader(false);
       window.location.reload();
@@ -56,8 +60,14 @@ const WithdrawModal = ({
             </button>
             <h4 className="modal__title">Withdraw Token</h4>
             <p className="modal__text">
-              You can spend money from your account to renew connected packages
-              or pay in other available ways.
+              <strong>⚠️ Early Withdrawal Warning:</strong> If you withdraw your staked
+              tokens before the staking period ends, <strong>20% of your staked tokens
+              will be permanently burned</strong> as an early withdrawal penalty. This
+              action is irreversible.
+            </p>
+            <p className="modal__text" style={{ marginTop: "1rem" }}>
+              <strong>Claiming your earned staking rewards is not affected</strong>
+              and can be done at any time once rewards are available.
             </p>
             <div className="modal__form">
               <PopUpInputField
@@ -68,7 +78,7 @@ const WithdrawModal = ({
               <PupUpButton
                 title={"Withdraw"}
                 handleClick={() =>
-                  CALLING_FUNCTION(withdrawPoolID, amount, address)
+                  CALLING_FUNCTION(withdrawPoolID, amount)
                 }
               />
               <PupUpButton

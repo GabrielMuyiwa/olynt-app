@@ -10,11 +10,11 @@ import { TiSocialYoutube } from "react-icons/ti";
 const Footer = () => {
   const social = [
     {
-      link: "https://x.com/GrainFiOfficial?t=Esqghvqn8VJhfWhBEcT9CQ&s=09",
+      link: "#",
       icon: <TiSocialTwitter />,
     },
     {
-      link: "https://youtube.com/@grainfi?si=-UhUDD8sienaMa7b",
+      link: "#",
       icon: <TiSocialYoutube />,
     },
   ];
@@ -71,7 +71,7 @@ const Footer = () => {
             <h6 className="footer__title">Support</h6>
             <div className="footer__nav">
               <a href="#">Help center</a>
-              <a href="https://medium.com/@grainfifarm/how-to-navigate-the-grainfi-dapp-a-step-by-step-guide-b45262cc11ec">
+              <a href="#">
                 How it works
               </a>
               <a href="#">Privacy policy</a>
@@ -92,7 +92,7 @@ const Footer = () => {
               </div>
               <small className="footer__copyright">
                 <a target="_blank" rel="noopener noreferrer">
-                  © {new Date().getFullYear()} GrainFi
+                  © {new Date().getFullYear()} Olynt
                 </a>
               </small>
             </div>

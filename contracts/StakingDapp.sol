@@ -46,7 +46,7 @@ contract StakingDapp is Ownable, ReentrancyGuard {
     address public signer;
     address public treasury;
 
-    uint256 public MAX_TASK_REWARD = 1 ether;
+    uint256 public MAX_TASK_REWARD = 5 ether;
     uint256 public MAX_DAILY_CLAIM = 50 ether;
 
     uint256 public claimAndStakeFee;
@@ -218,11 +218,14 @@ contract StakingDapp is Ownable, ReentrancyGuard {
     // =====================================================
 
     function claimReward(uint256 pid) external nonReentrant {
+        require(pid < poolCount, "Invalid pool");
+
         PoolInfo storage pool = poolInfo[pid];
         UserInfo storage user = userInfo[pid][msg.sender];
 
         uint256 reward = _calcReward(user, pid);
         require(reward > 0, "No reward");
+        require(pool.rewardToken.balanceOf(address(this)) >= reward, "Insufficient reward liquidity");
 
         user.lastRewardAt = block.timestamp;
 
@@ -236,13 +239,15 @@ contract StakingDapp is Ownable, ReentrancyGuard {
     // =====================================================
 
     function withdraw(uint256 pid, uint256 amount) external payable nonReentrant {
+        require(pid < poolCount, "Invalid pool");
+        require(amount > 0, "Invalid amount");
+
         PoolInfo storage pool = poolInfo[pid];
         UserInfo storage user = userInfo[pid][msg.sender];
 
         require(user.amount >= amount, "Too much");
 
         uint256 reward = _calcReward(user, pid);
-
         bool early = block.timestamp < user.lockUntil;
 
         if (early && earlyWithdrawFee > 0) {
@@ -250,29 +255,37 @@ contract StakingDapp is Ownable, ReentrancyGuard {
             _sendFee(earlyWithdrawFee);
         }
 
+        uint256 userReceive = amount;
+        uint256 penalty = 0;
+
+        if (early) {
+            penalty = (amount * 20) / 100;
+            userReceive = amount - penalty;
+        }
+
+        // Check balances before changing state
+        require(pool.rewardToken.balanceOf(address(this)) >= reward, "Insufficient reward liquidity");
+        require(pool.depositToken.balanceOf(address(this)) >= amount, "Insufficient deposit liquidity");
+
+        // Update state
+        user.amount -= amount;
+        pool.depositedAmount -= amount;
+        depositedTokens[address(pool.depositToken)] -= amount;
+
+        // Payout reward
         if (reward > 0) {
             pool.rewardToken.safeTransfer(msg.sender, reward);
         }
 
-        if (amount > 0) {
-            user.amount -= amount;
-            pool.depositedAmount -= amount;
-
-            depositedTokens[address(pool.depositToken)] -= amount;
-
-            if (early) {
-                uint256 penalty = (amount * 50) / 100;
-                uint256 userReceive = amount - penalty;
-
-                pool.depositToken.safeTransfer(msg.sender, userReceive);
-
-                pool.depositToken.safeTransfer(
-                    0x000000000000000000000000000000000000dEaD,
-                    penalty
-                );
-            } else {
-                pool.depositToken.safeTransfer(msg.sender, amount);
-            }
+        // Payout principal with optional penalty
+        if (early) {
+            pool.depositToken.safeTransfer(msg.sender, userReceive);
+            pool.depositToken.safeTransfer(
+                0x000000000000000000000000000000000000dEaD,
+                penalty
+            );
+        } else {
+            pool.depositToken.safeTransfer(msg.sender, amount);
         }
 
         user.lastRewardAt = block.timestamp;

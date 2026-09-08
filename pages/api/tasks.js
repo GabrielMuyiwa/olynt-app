@@ -6,18 +6,50 @@ const DAILY_LIMIT = 10;
 const COOLDOWN = 30;
 const MAX_TASKS_PER_DAY = 20;
 
-const provider = new ethers.providers.JsonRpcProvider(process.env.RPC_URL);
-const adminWallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
-const stakingContract = new ethers.Contract(
-  process.env.NEXT_PUBLIC_STAKING_DAPP,
-  stakingAbi.abi,
-  adminWallet
-);
+// Do NOT create provider/wallet/contract at module level
+let provider;
+let adminWallet;
+let stakingContract;
+
+function getContract() {
+  if (!provider) {
+    provider = new ethers.providers.JsonRpcProvider(process.env.RPC_URL);
+  }
+  if (!adminWallet) {
+    adminWallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+  }
+  if (!stakingContract) {
+    stakingContract = new ethers.Contract(
+      process.env.NEXT_PUBLIC_STAKING_DAPP,
+      stakingAbi.abi,
+      adminWallet
+    );
+  }
+  return stakingContract;
+}
+
+//const provider = new ethers.providers.JsonRpcProvider(process.env.RPC_URL);
+//const adminWallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+//const stakingContract = new ethers.Contract(
+  //process.env.NEXT_PUBLIC_STAKING_DAPP,
+  //stakingAbi.abi,
+  //adminWallet
+//);
+
+const getDayKeyUTC = (ms = Date.now()) =>
+  new Date(ms).toISOString().slice(0, 10);
+
+const getDayEndUTC = (ms = Date.now()) => {
+  const d = new Date(ms);
+  d.setUTCHours(23, 59, 59, 999);
+  return d.getTime();
+};
 
 export default async function handler(req, res) {
   const { method } = req;
 
   try {
+    // ---------- GET ----------
     if (method === "GET") {
       const { wallet, type } = req.query;
 
@@ -37,6 +69,10 @@ export default async function handler(req, res) {
         tasksSnap.forEach((doc) => {
           const data = doc.data();
           const isCompleted = completedTasks[doc.id]?.completed;
+
+           // TEMP DEBUG: log every task
+           console.log("Task doc:", doc.id, "data:", data, "isCompleted:", isCompleted);
+
           if (data.active && !isCompleted) {
             tasks.push({
               id: doc.id,
@@ -45,6 +81,7 @@ export default async function handler(req, res) {
           }
         });
 
+        console.log("Returning tasks count:", tasks.length);
         return res.json({ tasks });
       }
 
@@ -67,6 +104,7 @@ export default async function handler(req, res) {
       });
     }
 
+    // ---------- POST ----------
     if (method === "POST") {
       const { action, wallet, taskId, referrer } = req.body;
 
@@ -97,7 +135,10 @@ export default async function handler(req, res) {
       }
 
       const now = Date.now();
+      const todayKey = getDayKeyUTC(now);
+      const dayEndsAt = getDayEndUTC(now);
 
+      // ---------- START ----------
       if (action === "start") {
         await db.runTransaction(async (tx) => {
           const userSnap = await tx.get(userRef);
@@ -111,13 +152,11 @@ export default async function handler(req, res) {
                 dailyEarning: 0,
                 dailyCount: 0,
                 lastReset: now,
+                claimStreak: 0,
+                lastClaimDate: null,
+                pendingDailyReward: 0,
+                dailyClaimed: false,
               };
-
-          if (now - (userData.lastReset || now) > 86400000) {
-            userData.dailyEarning = 0;
-            userData.dailyCount = 0;
-            userData.lastReset = now;
-          }
 
           if (userData.tasks?.[taskId]?.completed) {
             throw new Error("Already completed");
@@ -146,6 +185,7 @@ export default async function handler(req, res) {
         return res.json({ success: true });
       }
 
+      // ---------- VERIFY ----------
       if (action === "verify") {
         const result = await db.runTransaction(async (tx) => {
           const userSnap = await tx.get(userRef);
@@ -189,10 +229,30 @@ export default async function handler(req, res) {
             refData = refSnap.exists ? refSnap.data() : {};
           }
 
+          // If the last reward window date is not today, reset pending and dailyClaimed
+          const dailyWindowDate = userData.dailyWindowDate || null;
+          const windowDayKey = dailyWindowDate
+            ? new Date(dailyWindowDate).toISOString().slice(0, 10)
+            : null;
+
+          if (windowDayKey && windowDayKey !== todayKey) {
+            userData.pendingDailyReward = 0;
+            userData.dailyClaimed = false;
+          }
+
           userData.tasks[taskId].completed = true;
-          userData.taskBalance = (userData.taskBalance || 0) + task.reward;
-          userData.dailyEarning = (userData.dailyEarning || 0) + task.reward;
-          userData.dailyCount = (userData.dailyCount || 0) + 1;
+          userData.taskBalance =
+            (userData.taskBalance || 0) + task.reward;
+          userData.dailyEarning =
+            (userData.dailyEarning || 0) + task.reward;
+          userData.dailyCount =
+            (userData.dailyCount || 0) + 1;
+
+          userData.pendingDailyReward =
+            (userData.pendingDailyReward || 0) + task.reward;
+
+          // Track the day this daily reward belongs to, so cron can expire it
+          userData.dailyWindowDate = new Date(now).toISOString();
 
           tx.set(userRef, userData, { merge: true });
 
@@ -200,9 +260,15 @@ export default async function handler(req, res) {
             tx.set(
               refRef,
               {
-                referralEarnings: (refData.referralEarnings || 0) + referralReward,
-                referralBalance: (refData.referralBalance || 0) + referralReward,
-                totalReferralEarned: (refData.totalReferralEarned || 0) + referralReward,
+                referralEarnings:
+                  (refData.referralEarnings || 0) +
+                  referralReward,
+                referralBalance:
+                  (refData.referralBalance || 0) +
+                  referralReward,
+                totalReferralEarned:
+                  (refData.totalReferralEarned || 0) +
+                  referralReward,
               },
               { merge: true }
             );
@@ -211,11 +277,10 @@ export default async function handler(req, res) {
           return {
             success: true,
             reward: task.reward,
+            dailyWindowDate: todayKey,
+            dailyWindowEndsAt: dayEndsAt,
           };
         });
-
-        //const rewardWei = ethers.utils.parseUnits(result.reward.toString(), 18);
-        //await stakingContract.creditTaskReward(wallet, rewardWei);
 
         return res.json(result);
       }
@@ -225,6 +290,7 @@ export default async function handler(req, res) {
 
     return res.status(405).json({ error: "Method not allowed" });
   } catch (error) {
+    console.error(error);
     return res.status(400).json({
       error: error.message || "Something went wrong",
     });

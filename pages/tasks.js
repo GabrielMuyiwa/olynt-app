@@ -14,9 +14,9 @@ const tabs = ["Watch", "Click", "Offers", "Surveys"];
 const STORAGE_KEY = "active_task_session";
 
 const pools = [
-  { id: 0, name: "Flexible Pool" },
-  { id: 1, name: "30 Days Pool" },
-  { id: 2, name: "90 Days Pool" },
+  { id: 0, name: "60 Days Pool" },
+  { id: 1, name: "90 Days Pool" },
+  { id: 2, name: "180 Days Pool" },
 ];
 
 export default function TasksPage() {
@@ -34,6 +34,18 @@ export default function TasksPage() {
   const [canClaim, setCanClaim] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [watchTaskOpen, setWatchTaskOpen] = useState(false);
+  const [rewardStatus, setRewardStatus] = useState({
+    dailyClaimed: false,
+    claimStreak: 0,
+    pendingDailyReward: 0,
+    taskBalance: 0,
+    lastClaimDate: null,
+    windowEndsAt: 0,
+    isExpired: false,
+    secondsLeft: 0,
+  });
+
+  const [secondsLeft, setSecondsLeft] = useState(0);
   const [startingTaskId, setStartingTaskId] = useState(null);
   const [verifyingTaskId, setVerifyingTaskId] = useState(null);
   const timerRef = useRef(null);
@@ -66,9 +78,57 @@ export default function TasksPage() {
     }
   };
 
+  const getRewardStatus = async () => {
+    if (!address) return;
+    try {
+      const res = await fetch(`/api/reward-status?wallet=${address}`);
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setRewardStatus({
+          dailyClaimed: Boolean(data.dailyClaimed),
+          claimStreak: Number(data.claimStreak || 0),
+          pendingDailyReward: Number(data.pendingDailyReward || 0),
+          taskBalance: Number(data.taskBalance || 0),
+          lastClaimDate: data.lastClaimDate || null,
+          windowEndsAt: Number(data.windowEndsAt || 0),
+          isExpired: Boolean(data.isExpired),
+          secondsLeft: 0,
+        });
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
-    if (address) getBalance();
+    if (address) {
+      getBalance();
+      getRewardStatus();
+    }
   }, [address]);
+
+  useEffect(() => {
+    if (!rewardStatus.windowEndsAt) return;
+
+    const updateCountdown = () => {
+      const now = Date.now();
+      const remaining = Math.max(
+        0,
+        Math.ceil((rewardStatus.windowEndsAt - now) / 1000)
+      );
+
+      setRewardStatus((prev) => ({
+        ...prev,
+        secondsLeft: remaining,
+      }));
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+
+    return () => clearInterval(interval);
+  }, [rewardStatus.windowEndsAt]);
 
   useEffect(() => {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -158,6 +218,13 @@ export default function TasksPage() {
 
   const saveSession = (task, endTime) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ task, endTime }));
+  };
+
+  const formatSeconds = (total) => {
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const seconds = total % 60;
+    return `${hours}h ${minutes}m ${seconds}s`;
   };
 
   const clearSession = () => {
@@ -335,8 +402,12 @@ export default function TasksPage() {
     try {
       setClaiming(true);
 
+      await getRewardStatus();
       const freshBalance = await getBalance();
-      const amountToUse = Number(freshBalance);
+
+      const pending = Number(rewardStatus.pendingDailyReward || 0);
+      const baseBalance = Number(rewardStatus.taskBalance || 0);
+      const amountToUse = pending > 0 ? pending : baseBalance;
 
       if (amountToUse <= 0) {
         setEarnings(0);
@@ -359,7 +430,8 @@ export default function TasksPage() {
       });
 
       const data = await res.json();
-      if (!data.success) {
+
+      if (!res.ok || !data.success) {
         alert(data.error || "Server error");
         return;
       }
@@ -385,29 +457,27 @@ export default function TasksPage() {
 
       await tx.wait();
 
-      // Tell backend to subtract off-chain task balance
-      await fetch("/api/confirm-claim", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          wallet: address,
-          amount: amountToUse,
-        }),
-      });
+      //await fetch("/api/confirm-claim", {
+        //method: "POST",
+        //headers: { "Content-Type": "application/json" },
+        //body: JSON.stringify({
+          //wallet: address,
+          //amount: amountToUse,
+        //}),
+      //});
 
-      //const updatedBalance = Number(data.newTaskBalance ?? 0);
-      //setEarnings(updatedBalance);
       await new Promise((r) => setTimeout(r, 500));
       await getBalance();
-      
+      await getRewardStatus();
+
       alert("✅ Claimed & Staked successfully!");
     } catch (err) {
       console.error(err);
       alert(err?.response?.data?.error || err?.message || "❌ Claim & Stake failed");
-      } finally {
-        setClaiming(false);
-        }
-      };
+    } finally {
+      setClaiming(false);
+    }
+  };
 
   const withdrawRewards = async () => {
     if (!address) return alert("Connect wallet");
@@ -478,6 +548,35 @@ export default function TasksPage() {
 
       <h1>Task Center</h1>
       <p>Total Earned: {earnings.toFixed(2)} OLYNT</p>
+
+      <div
+        style={{
+          marginTop: "14px",
+          marginBottom: "18px",
+          padding: "14px",
+          border: "1px solid #333",
+          borderRadius: "10px",
+          background: "#1b1730",
+          color: "#fff",
+        }}
+      >
+        <p style={{ margin: 0, fontWeight: "bold" }}>Daily Reward Status</p>
+        <p style={{ margin: "8px 0 0" }}>
+          Pending: {Number(rewardStatus.pendingDailyReward || 0).toFixed(2)} OLYNT
+        </p>
+        <p style={{ margin: "6px 0 0" }}>
+          Streak: {rewardStatus.claimStreak || 0} day
+          {rewardStatus.claimStreak === 1 ? "" : "s"}
+        </p>
+        <p style={{ margin: "6px 0 0" }}>
+          Status:{" "}
+          {rewardStatus.isExpired
+            ? "Reward expired — missed today’s window"
+            : rewardStatus.secondsLeft > 0
+            ? `Claim before window closes · ${formatSeconds(rewardStatus.secondsLeft)} left`
+            : "Reward is available now"}
+        </p>
+      </div>
 
       <div style={{ display: "flex", gap: "10px", marginBottom: 20, flexWrap: "wrap" }}>
         {tabs.map((tab) => (
@@ -610,7 +709,7 @@ export default function TasksPage() {
 
         <button
           onClick={claimAndStakeRewards}
-          disabled={claiming}
+          disabled={claiming || rewardStatus.isExpired}
           style={{
             padding: "12px",
             background: claiming ? "gray" : "#00b894",
@@ -620,7 +719,11 @@ export default function TasksPage() {
             cursor: claiming ? "not-allowed" : "pointer",
           }}
         >
-          {claiming ? "Processing..." : "Claim & Stake Rewards"}
+          {claiming
+            ? "Processing..."
+            : rewardStatus.isExpired
+            ? "Reward Expired"
+            : "Claim & Stake Rewards"}
         </button>
 
         <div

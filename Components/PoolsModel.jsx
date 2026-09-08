@@ -46,10 +46,10 @@ const PoolsModel = ({
                 <IoMdClose />
               </i>
             </button>
-            <h4 className="modal__title">Plant</h4>
+            <h4 className="modal__title">Staking</h4>
             <p className="modal__text">
-              Welcome to GrainFi Farm, Plant your{" "}
-              {selectedPool?.depositToken.name} token to harvest reward .
+              Welcome to OLYNT, Stake your{" "}
+              {selectedPool?.depositToken.name} token to earn rewards .
             </p>
             <div className="modal__form">
               <PopUpInputField

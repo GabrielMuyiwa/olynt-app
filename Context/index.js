@@ -122,7 +122,8 @@ export async function CONTRACT_DATA(address) {
         poolInfoArray: poolInfoArray,
         totalDepositAmount: totalDepositAmount,
         contractTokenBalance:
-          Number(depositToken?.contractTokenBalance || 0) - totalDepositAmount,
+          Number(depositToken?.contractTokenBalance || 0) -
+          Number(totalDepositAmount || 0),
       };
 
       return data;
